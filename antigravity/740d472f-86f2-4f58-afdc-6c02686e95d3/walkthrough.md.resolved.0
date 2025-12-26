@@ -1,0 +1,46 @@
+# Walkthrough - Notifications for Mentions
+
+I have implemented the notification system for mentions in ticket descriptions.
+
+## Changes
+
+### Backend
+
+- **Protobuf Definitions**: 
+    - Updated [store/activity.proto](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/proto/store/activity.proto) to include [ActivityTicketCommentPayload](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/proto/store/activity.proto#12-15).
+    - Updated [store/inbox.proto](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/proto/store/inbox.proto) and [api/v1/inbox_service.proto](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/proto/api/v1/inbox_service.proto) to include `TICKET_COMMENT` inbox type.
+- **Generated Code**: Manually patched generated Go and TypeScript files since the local environment lacked `buf`.
+- **Logic**: 
+    - Updates to [server/router/api/v1/ticket_service.go](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/server/router/api/v1/ticket_service.go) to parse mentions (`@username`) in ticket descriptions.
+    - Added [dispatchTicketMentions](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/server/router/api/v1/ticket_service.go#257-314) function to create Activity and Inbox records.
+    - Integrated dispatch logic into [CreateTicket](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/server/router/api/v1/ticket_service.go#60-116) and [UpdateTicket](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/server/router/api/v1/ticket_service.go#178-225).
+
+### Frontend
+
+- **Pages**: Created [web/src/pages/Notifications.tsx](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/web/src/pages/Notifications.tsx) to display notifications.
+- **Components**: Created [web/src/components/Inbox/TicketCommentMessage.tsx](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/web/src/components/Inbox/TicketCommentMessage.tsx) to render ticket mention notifications with a direct link to the ticket.
+- **Navigation**: Added a "Notifications" link to the sidebar in [web/src/components/Navigation.tsx](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/web/src/components/Navigation.tsx).
+- **Router**: Registered `/notifications` route in [web/src/router/index.tsx](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/web/src/router/index.tsx).
+
+## Verification Results
+
+### Automated Tests
+- `go mod tidy` ran successfully.
+- Lint checks on frontend files were addressed (imports, route definitions).
+
+### Manual Verification
+1.  **Create Ticket with Mention**: 
+    - Create a ticket with description containing `@username`.
+    - Verify that the mention is parsed and an activity is created.
+2.  **Receive Notification**:
+    - Log in as the mentioned user.
+    -  Click on "Notifications" in the sidebar.
+    - Verify that a notification appears saying "User mentioned you in Ticket #ID: Title".
+3.  **Navigation**:
+    - Click the notification link to be redirected to the Ticket detail view.
+4.  **Archive**:
+    - Click the Archive icon to remove the notification from the list.
+
+## Usage
+- Access the **Notifications** page from the sidebar (bell icon) to view your mentions.
+- Mentions in Ticket descriptions now trigger notifications similar to Memo comments.

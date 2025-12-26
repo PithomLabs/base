@@ -1,0 +1,6 @@
+{
+  "artifactType": "ARTIFACT_TYPE_WALKTHROUGH",
+  "summary": "Enforce Memo for Ticket Creation Walkthrough\n- Backend validation added in `store/ticket.go`.\n- Frontend validation added in `web/src/pages/Tickets.tsx` with improved error reporting.\n- Tests updated in `store/test/ticket_test.go`.\n\nImplement Mention Notifications Walkthrough\n- Backend: `server/router/api/v1/memo_service.go` now parses mentions and sends notifications.\n- Frontend: `web/src/components/Inbox/MemoCommentMessage.tsx` redirects mentions to Ticket View.",
+  "updatedAt": "2025-12-21T18:53:13.358728317Z",
+  "version": "2"
+}

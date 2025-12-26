@@ -1,0 +1,77 @@
+Progress Updates
+1
+Checking migration files and sidebar component to finalize implementation details
+
+2
+Creating the backend Ticket model and store interface in store/ticket.go
+
+3
+Implementing the TicketStore interface for SQLite, MySQL, and Postgres in store/db/sqlite/ticket.go, mysql/ticket.go, and postgres/ticket.go
+
+4
+Adding database migration files to store/migration for SQLite, MySQL, and Postgres
+
+5
+Updating store/driver.go interface and registering the service in server/router/api/v1/v1.go
+
+6
+Updating store/driver.go and store/store.go to include ticket methods
+
+7
+Implementing TicketStore methods on the Store struct in store/ticket.go
+
+8
+Checking server/server.go to understand authentication middleware for user identification
+
+9
+Implementing server/router/api/v1/ticket_service.go using Echo implementation pattern
+
+10
+Updating server/router/api/v1/v1.go to register ticket routes
+
+11
+Adding /tickets route to web/src/router/index.tsx
+
+12
+Adding "Tickets" navigation link to web/src/components/Navigation.tsx
+
+13
+Checking web/package.json for available libraries (axios vs fetch)
+
+14
+Checking web/src/pages/Resources.tsx for UI patterns
+
+15
+Updating task.md to reflect completed backend and frontend tasks
+
+16
+Investigating correct build command/entry point; cmd/server not found
+
+17
+Checking bin directory for entry point
+
+18
+Running go build to verify backend compilation using the correct entry point bin/memos/main.go
+
+19
+Checking build status and attempting frontend verification if possible
+
+20
+Creating WALKTHROUGH.MD to document the implementation and usage instructions
+
+
+
+How to Test
+-----------
+
+From memos-0244 
+```
+./memos --mode dev --driver sqlite --data ./data
+```
+
+In another terminal
+```
+
+```
+cd web && npm run dev
+```

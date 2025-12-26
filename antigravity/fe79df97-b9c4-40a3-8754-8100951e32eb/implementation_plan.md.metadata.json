@@ -1,0 +1,5 @@
+{
+  "artifactType": "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary": "Implementation plan to ensure frontend files are embedded into the Go binary.",
+  "updatedAt": "2025-12-21T14:35:47.338700608Z"
+}

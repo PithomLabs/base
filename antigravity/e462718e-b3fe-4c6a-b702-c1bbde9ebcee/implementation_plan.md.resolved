@@ -1,0 +1,48 @@
+# Implement Mention Notifications
+
+# Goal Description
+Implement a notification system where users are notified when mentioned (`@nickname`) in ticket descriptions or comments. Clicking the notification should take the user to the **Ticket View**.
+
+## User Review Required
+> [!NOTE]
+> We are using **Option B (Zero-Dependency)**. Mentions will be stored and delivered acting as "Comments" in the backend to avoid modifying Protocol Buffers. This means the UI might label them as "Comment" notifications initially, but we will handle the redirection logic.
+
+## Proposed Changes
+
+### Backend
+#### [MODIFY] [memo_service.go](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/server/router/api/v1/memo_service.go)
+- Implement `dispatchMemoMentions(ctx, memo)` helper function.
+- Call this function in [CreateMemo](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/server/router/api/v1/memo_service.go#29-96) and [CreateMemoComment](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/server/router/api/v1/memo_service.go#434-501).
+- Logic:
+    - Parse content for `@nickname`.
+    - Resolve users.
+    - Create [Activity](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/store/activity.go#29-41) (Type: `MEMO_COMMENT`).
+    - Create [Inbox](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/web/src/components/Inbox) (Type: `MEMO_COMMENT`).
+
+### Frontend
+#### [MODIFY] [MemoCommentMessage.tsx](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/web/src/components/Inbox/MemoCommentMessage.tsx)
+- Update [handleNavigateToMemo](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/web/src/components/Inbox/MemoCommentMessage.tsx#48-58) to intercept the navigation.
+- Logic:
+    - Fetch tickets (or use a lightweight check).
+    - If `relatedMemo` corresponds to a Ticket's description (Memo link), redirect to `/tickets?id=X`.
+    - Otherwise, redirect to the Memo as usual.
+
+## Verification Plan
+
+### Manual Verification
+1.  **Setup**: User A and User B.
+2.  **Case 1: Ticket Description Mention**:
+    - User A creates a ticket. In the description, types `@UserB check this`.
+    - User B logs in. Checks Inbox.
+    - Expectation: Notification "User A commented on...".
+    - Action: Click notification.
+    - Expectation: Redirect to [Tickets](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/store/ticket.go#91-94) page, ideally opening the specific ticket.
+3.  **Case 2: Comment Mention**:
+    - User A comments on a ticket: `@UserB please fix`.
+    - User B logs in. Checks Inbox.
+    - Expectation: Notification present.
+    - Action: Click notification.
+    - Expectation: Redirect to [Tickets](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/store/ticket.go#91-94) page.
+
+### Automated Tests
+-   Verify backend parsing logic via unit test (if possible to add easily) or rely on manual verification given the "prototype" nature constraints.

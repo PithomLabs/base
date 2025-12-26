@@ -1,0 +1,13 @@
+- [x] Backend Implementation
+    - [x] Create `store/ticket.go` with `Ticket` struct and `TicketStore` interface
+    - [x] Implement `TicketStore` for SQLite, MySQL, and Postgres
+    - [x] Add migration script for `tickets` table (Version 0.25)
+    - [x] Create `server/router/api/v1/ticket_service.go`
+    - [x] Register ticket routes in `server/router/api/v1/v1.go`
+- [x] Frontend Implementation
+    - [x] Add `/tickets` route in `web/src/router/index.tsx`
+    - [x] Add "Tickets" link to `web/src/components/Navigation.tsx`
+    - [x] Create `web/src/pages/Tickets.tsx` (List view + Create/Edit Dialog)
+- [x] Verification
+    - [x] Verify backend compilation
+    - [x] Frontend code structure verified (Linting deferred to user environment)

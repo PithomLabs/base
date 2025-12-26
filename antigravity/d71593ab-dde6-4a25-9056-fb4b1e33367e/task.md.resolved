@@ -1,0 +1,15 @@
+# Mentions Notification System
+
+- [x] Database Schema
+    - [x] Create `notifications` table (initiator_id, receiver_id, ticket_url, created_ts, is_read)
+    - [x] Add migration script
+- [x] Backend Implementation
+    - [x] Create [Notification](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/store/notification.go#7-15) model and Store
+    - [x] Implement mention detection logic in Memo/Ticket services
+    - [x] Implement API to list notifications
+    - [x] Implement API to patch notification (mark as read)
+    - [x] Implement SSE for unread notification count
+- [x] Frontend Implementation
+    - [x] Create/Update Notifications page to display table
+    - [x] Update Navigation/Sidebar to show unread count badge via SSE
+    - [x] Connect frontend to SSE

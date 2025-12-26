@@ -1,0 +1,15 @@
+# Mentions Notification System
+
+- [ ] Database Schema
+    - [ ] Create `notifications` table (initiator_id, receiver_id, ticket_url, created_ts, is_read)
+    - [ ] Add migration script
+- [ ] Backend Implementation
+    - [ ] Create `Notification` model and Store
+    - [ ] Implement mention detection logic in Memo/Ticket services
+    - [ ] Implement API to list notifications
+    - [ ] Implement API to patch notification (mark as read)
+    - [ ] Implement SSE for unread notification count
+- [ ] Frontend Implementation
+    - [ ] Create/Update Notifications page to display table
+    - [ ] Update Navigation/Sidebar to show unread count badge via SSE
+    - [ ] Connect frontend to SSE

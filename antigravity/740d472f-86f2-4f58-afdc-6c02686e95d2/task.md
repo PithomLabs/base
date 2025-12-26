@@ -1,0 +1,18 @@
+- [ ] Update Protobuf definitions
+    - [ ] `proto/store/activity.proto` - Add `ActivityTicketCommentPayload`
+    - [ ] `proto/store/inbox.proto` - Add `TICKET_COMMENT` to `InboxMessage.Type`
+    - [ ] `proto/api/v1/inbox_service.proto` - Add `TICKET_COMMENT` to `Inbox.Type`
+- [ ] Generate Code
+    - [ ] Run `go generate ./...` or `task generate`
+- [ ] Update Backend Constants
+    - [ ] `store/activity.go` - Add `ActivityTypeTicketComment`
+- [ ] Implement Ticket Mentions Backend
+    - [ ] `server/router/api/v1/ticket_service.go` - Implement `dispatchTicketMentions`
+    - [ ] Call `dispatchTicketMentions` in `CreateTicket` and `UpdateTicket`
+- [ ] Implement Frontend
+    - [ ] `web/src/components/Navigation.tsx` - Add Notifications link
+    - [ ] `web/src/pages/Notifications.tsx` - Create Notifications page
+    - [ ] `web/src/router/index.tsx` - Add route
+- [ ] Verification
+    - [ ] Test creating a ticket with specific user mention
+    - [ ] Verify notification creation

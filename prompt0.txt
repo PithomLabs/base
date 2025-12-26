@@ -1,0 +1,51 @@
+analyze the code at /home/chaschel/Documents/ibm/go/memos-0244 and write it down as ANALYSIS.MD in markdown
+
+I want to extend memos with Jira like ticket management system with the following requirements:
+
+- a form for adding/updating a ticket complete with the essential fields
+- use native storage of memos but provision for sqlite mysql and postgres
+- no sprint management (just basic ticket management)
+- the deliverable is just one form for ticket management and a link in memos sidebar
+- just stick with https://github.com/usememos/memos/tree/v0.24.4 ONLY (read from that repo only, not the latest version)
+- use the native react elements in this folder
+- /home/chaschel/Documents/ibm/go/memos-0244 is a local version of that repo v0.24.4
+- the goal of that analysis is to provide a plan for your implementation so make it detailed as much as possible (that will be your blueprint so make the most of it)
+
+write your analysis in markdown
+
+
+----
+it works. Now I want to use the replace the description field in ticket form with the memos markdown editor such that when I add or edit the ticket, it will save it to ticket table description field but only the URL of the memo (not the content itself)
+
+no need to modify anything in the editor, retain as is, just adapt the description field
+
+so to clarify, after add/update of description in ticket
+1. save description content as new memo record
+2. save that memo record URL as value of ticket table description field
+
+ask if you need clarification and write down your detailed plan as MEMO_DESC.MD before implementing
+
+
+Reply:
+I've created the implementation plan at 
+MEMO_DESC.MD
+.
+
+Before I proceed, I have a few questions:
+
+When editing a ticket, should we:
+Option A: Create a NEW memo each time (preserving history)
+Option B: Update the existing memo (overwrite)
+What visibility should the description memo have?
+PRIVATE / PROTECTED / PUBLIC
+Should we add a "View Full Description" link that opens the memo page?
+
+
+------
+Should we add a "View Full Description" link that opens the memo page? - Yes
+Update existing memo when editing (instead of creating new)
+Use PUBLIC visibility by default
+
+
+-----
+in tickets form when I clicked Delete action it does not delete the record (fix it but do not delete the associated memo, only the ticket record)

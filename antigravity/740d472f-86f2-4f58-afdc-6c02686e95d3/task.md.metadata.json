@@ -1,0 +1,6 @@
+{
+  "artifactType": "ARTIFACT_TYPE_TASK",
+  "summary": "Implementation checklist for SSE notification system with datastar-go. Tracks Phase 1 (backend), Phase 2 (frontend), and Phase 3 (testing) tasks.",
+  "updatedAt": "2025-12-22T05:41:36.304647426Z",
+  "version": "1"
+}

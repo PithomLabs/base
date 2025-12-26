@@ -1,0 +1,20 @@
+# SSE Notification Implementation
+
+## Phase 1: Backend SSE Infrastructure
+- [/] Add `github.com/starfederation/datastar-go` dependency
+- [ ] Create `NotificationHub` for managing SSE connections
+- [ ] Add `/api/v1/notifications/stream` SSE endpoint
+- [ ] Create notification HTML renderer
+- [ ] Modify [dispatchMemoMentions](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/server/router/api/v1/memo_service.go#713-796) to push via SSE
+
+## Phase 2: Frontend Integration
+- [ ] Add Datastar script to `index.html`
+- [ ] Add SSE container to `App.tsx` or layout
+- [ ] Add notification toast CSS
+- [ ] Update notification badge for live updates
+
+## Phase 3: Testing
+- [ ] Test SSE connection establishment
+- [ ] Test real-time notification push
+- [ ] Test toast popup display
+- [ ] Test graceful degradation

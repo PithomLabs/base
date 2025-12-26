@@ -1,0 +1,5 @@
+{
+  "artifactType": "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary": "Plan to implement mention notifications. Includes new DB table, backend API, and frontend updates.",
+  "updatedAt": "2025-12-22T08:31:47.619912635Z"
+}

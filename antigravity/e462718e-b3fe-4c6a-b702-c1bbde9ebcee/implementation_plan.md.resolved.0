@@ -1,0 +1,34 @@
+# Enforce Memo for Ticket Creation
+
+# Goal Description
+The goal is to enforce a validation rule during ticket creation: a ticket cannot be saved unless it has a valid memo description associated with it. This means the `description` field must be a link to a memo (starting with `/m/`). This ensures all tickets have a backing memo for rich content and history.
+
+## User Review Required
+> [!IMPORTANT]
+> This is a breaking change for the API. Any existing clients (if any other than the web frontend) creating tickets with plain text descriptions will now fail. Existing tickets with plain text descriptions will not be affected unless they are updated, at which point validaton *might* kick in if we applied it to updates too, but the plan focuses on creation/validation logic. The [Validate](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/store/ticket.go#60-72) method is called on creation.
+
+## Proposed Changes
+
+### Backend
+#### [MODIFY] [ticket.go](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/store/ticket.go)
+- Update [Validate()](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/store/ticket.go#60-72) method to check if [Description](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/web/src/pages/Tickets.tsx#208-215) starts with `/m/`.
+
+### Frontend
+#### [MODIFY] [Tickets.tsx](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/web/src/pages/Tickets.tsx)
+- Update [handleCreateOrUpdate](file:///home/chaschel/Documents/ibm/go/tix-gemini-master/web/src/pages/Tickets.tsx#148-199) to check if `description` is a valid memo link before submission.
+- Add a toast error if validation fails.
+
+## Verification Plan
+
+### Automated Tests
+- I will not be writing new unit tests but I will verify the changes by manually simulating the creation flow.
+
+### Manual Verification
+1.  **Backend Verification**:
+    - Try to create a ticket via `curl` with a plain text description. Expect a 400 error.
+    - Try to create a ticket via `curl` with a description starting with `/m/`. Expect success.
+2.  **Frontend Verification**:
+    - Open the "New Ticket" modal.
+    - Enter a title but leave description empty. Click "Create Ticket". Expect error toast.
+    - Enter a plain text description. Click "Create Ticket". Expect error toast.
+    - Use "Add description" to create a memo. Click "Create Ticket". Expect success.

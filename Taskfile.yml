@@ -1,0 +1,38 @@
+version: '3'
+
+tasks:
+  setup:
+    desc: Install all dependencies
+    cmds:
+      - npm --prefix web install
+      - go mod download
+
+  build:frontend:
+    desc: Build frontend assets
+    cmds:
+      - npm --prefix web run release
+
+  build:backend:
+    desc: Build the Go binary
+    cmds:
+      - mkdir -p build
+      - go build -o build/memos ./bin/memos/main.go
+
+  build:
+    desc: Build everything (frontend + backend)
+    deps: [build:frontend, build:backend]
+
+  dev:frontend:
+    desc: Run frontend dev server
+    cmds:
+      - npm --prefix web run dev
+
+  dev:backend:
+    desc: Run backend dev server
+    cmds:
+      - go run ./bin/memos/main.go --mode dev
+
+  generate:
+    desc: Run go generate
+    cmds:
+      - go generate ./...
