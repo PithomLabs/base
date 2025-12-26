@@ -131,10 +131,26 @@ func (s *APIV1Service) CreateTicket(c echo.Context) error {
 	}
 
 	// STRICT BD CLI INTEGRATION: Create issue via bd CLI first
+	// Fetch memo content if description is a memo link
+	memoContent := request.Description
+	if strings.HasPrefix(request.Description, "/m/") {
+		memoName := convertDescriptionToMemoName(request.Description)
+		// Get memo by name
+		memoList, err := s.Store.ListMemos(ctx, &store.FindMemo{
+			UID: &memoName,
+		})
+		if err == nil && len(memoList) > 0 {
+			memo := memoList[0]
+			// Format content per AGENTS.MD protocol
+			memoContent = formatMemoContentForBeads(memo.Content, issueType)
+			slog.Info("Fetched memo content for beads", "memoUID", memoName, "contentLength", len(memoContent))
+		}
+	}
+
 	beadsResp, err := s.beadsService.CreateIssue(ctx, &service.BeadsIssueRequest{
 		Title:       request.Title,
-		Description: request.Description,
-		Type:        issueType, // Use normalized lowercase type
+		Description: memoContent, // Pass actual content, not link
+		Type:        issueType,   // Use normalized lowercase type
 		Priority:    request.Priority.Int(),
 		Labels:      request.Labels,
 	})
@@ -305,12 +321,96 @@ func (s *APIV1Service) DeleteTicket(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid ticket ID")
 	}
-
 	if err := s.Store.DeleteTicket(ctx, &store.DeleteTicket{ID: int32(id)}); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete ticket").SetInternal(err)
 	}
 
 	return c.JSON(http.StatusOK, true)
+}
+
+// convertDescriptionToMemoName converts "/m/xyz" to "memos/xyz"
+func convertDescriptionToMemoName(description string) string {
+	if !strings.HasPrefix(description, "/m/") {
+		return ""
+	}
+	uid := strings.TrimPrefix(description, "/m/")
+	return fmt.Sprintf("memos/%s", uid)
+}
+
+// formatMemoContentForBeads formats memo content per AGENTS.MD protocol
+func formatMemoContentForBeads(content string, issueType string) string {
+	// Add type-specific formatting
+	switch issueType {
+	case "bug":
+		return formatBugDescription(content)
+	case "feature":
+		return formatFeatureDescription(content)
+	case "task":
+		return formatTaskDescription(content)
+	default:
+		return content
+	}
+}
+
+// formatBugDescription adds bug-specific AGENTS.MD formatting
+func formatBugDescription(content string) string {
+	// Check if already formatted
+	if strings.Contains(content, "Steps to reproduce:") {
+		return content
+	}
+
+	// Add template if not formatted
+	return fmt.Sprintf(`## Bug Report
+
+### Description
+%s
+
+### Details
+**Steps to reproduce:**
+1. [Add steps here]
+
+**Expected behavior:** [What should happen]
+**Actual behavior:** [What happens instead]
+**Error message:** [If any]
+**Code location:** [file:line]
+`, content)
+}
+
+// formatFeatureDescription adds feature-specific AGENTS.MD formatting
+func formatFeatureDescription(content string) string {
+	if strings.Contains(content, "Acceptance Criteria:") {
+		return content
+	}
+
+	return fmt.Sprintf(`## Feature Request
+
+### Description
+%s
+
+### Acceptance Criteria
+- [ ] [Criterion 1]
+- [ ] [Criterion 2]
+
+**Dependencies:** [What's needed]
+**Impact:** [Who benefits]
+`, content)
+}
+
+// formatTaskDescription adds task-specific AGENTS.MD formatting
+func formatTaskDescription(content string) string {
+	if strings.Contains(content, "Current State:") {
+		return content
+	}
+
+	return fmt.Sprintf(`## Task
+
+### Description
+%s
+
+**Current State:** [What exists]
+**Goal:** [What we want]
+**Files affected:** [List files]
+`, content)
 }
 
 func convertTicketFromStore(ticket *store.Ticket) *Ticket {

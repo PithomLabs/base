@@ -149,6 +149,79 @@ bd ready    # Show available work
 
 ## Issue Creation Protocol
 
+### When to Create Issues
+Create a beads issue for EVERY discrete unit of work:
+- Every bug found
+- Every feature request
+- Every refactoring task
+- Every dependency update
+- Every test that needs writing
+
+### Issue Creation Template
+```bash
+# BASIC TEMPLATE
+bd create "[BRIEF DESCRIPTIVE TITLE]" \
+  -p [0-4] \
+  -t [bug|feature|task|epic] \
+  -d "[Detailed description including:
+      - Steps to reproduce (for bugs)
+      - Acceptance criteria (for features)
+      - Current vs desired behavior
+      - Relevant code locations
+      - Any error messages]" \
+  --label "[comma,separated,labels]"
+
+# EXAMPLES
+# Bug:
+bd create "TypeError in user authentication middleware" \
+  -p 0 \
+  -t bug \
+  -d "Server crashes when JWT token is malformed. 
+      Steps:
+      1. Send POST to /api/login with invalid token
+      2. Observe 500 error
+      
+      Location: src/middleware/auth.js:45
+      Error: 'Cannot read property userId of undefined'" \
+  --label "backend,security,blocker"
+
+# Feature:
+bd create "Add user profile image upload" \
+  -p 2 \
+  -t feature \
+  -d "Users should be able to upload profile pictures.
+      
+      Acceptance Criteria:
+      - [ ] Upload via drag-and-drop or file picker
+      - [ ] Support JPG, PNG, WebP up to 5MB
+      - [ ] Auto-generate thumbnails
+      - [ ] Show in user profile and comments
+      
+      Dependencies: Cloud storage service configured" \
+  --label "frontend,feature,ui"
+
+# Technical Debt:
+bd create "Refactor legacy payment processor module" \
+  -p 3 \
+  -t task \
+  -d "Module is tightly coupled and hard to test.
+      
+      Goals:
+      - Extract interfaces for payment providers
+      - Add unit tests (currently 0% coverage)
+      - Implement retry logic with exponential backoff
+      
+      Files: src/payment/legacy-processor.js" \
+  --label "refactor,backend,tech-debt"
+```
+
+### Priority Guidelines
+- **P0**: Blockers, production outages, security issues
+- **P1**: Critical features, major bugs affecting users
+- **P2**: Important features, significant improvements
+- **P3**: Nice-to-have features, minor improvements
+- **P4**: Backlog, future enhancements
+
 ### When Issues Are Created
 
 **Antigravity MUST create Beads issues for:**

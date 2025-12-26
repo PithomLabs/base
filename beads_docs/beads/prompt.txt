@@ -1,0 +1,7 @@
+based on attached file, write comprehensive guidelines for AI coding agents specifically Antigravity on how to integrate beads https://github.com/steveyegge/beads as issue tracker and context engineering when working with a human prompt engineering on Antigravity
+
+the goal is for Antigravity to call beads to automatically file issues, relate them per attached file, follow guidelines there for best practices so issues don't get lost even with coding session restart
+
+however, I still want humans in the loop for review and approval
+
+write the development workflow for both coding agent (Antigravity) and human (me), include best practices in software engineering 

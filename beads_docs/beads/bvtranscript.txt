@@ -1,0 +1,374 @@
+prompt
+------
+based on attached file, write comprehensive guidelines for AI coding agents specifically Antigravity on how to integrate beads https://github.com/steveyegge/beads as issue tracker and context engineering when working with a human prompt engineering on Antigravity
+
+the goal is for Antigravity to call beads to automatically file issues, relate them per attached file, follow guidelines there for best practices so issues don't get lost even with coding session restart
+
+however, I still want humans in the loop for review and approval
+
+write the development workflow for both coding agent (Antigravity) and human (me), include best practices in software engineering 
+
+-----
+https://www.youtube.com/watch?v=cWBVMEHPg
+To-do lists inside of AI agents have a major problem. And I'm going to show you how to fix that with beads. >> Beads. >> Beads. >> Beads. >> Beads. >> Now,, if, you've, used, any, of, the, major, AI coding platforms, you know that they all kind of implement their own to-do system. And these to-dos are often kind of just like a visual indicator of what's next. Now, the big problem with these things is that they're sort of ephemeral in that they just live in that session and you can't really share them amongst your team. So, what a lot of people end up doing is they make their own system out of a markdown file and then have the markdown files follow some kind of specd driven workflow. In fact the editor Curo even built this into the editor in its own markdown format and it does so really well actually giving you interactivity even allowing you to see the execution of each individual task. However, this exists only in Curo and really follows a strict spec workflow that you have to adhere to. So, what happens if you want to share these to-dos with other people or you just want to make sure these things don't change over time or the context gets out of control or compacted or this or that? Well, in comes Beads and Beads is a memory upgrade for your coding agent. The way this thing works is that there's a SQLite cache that lives in your local application as well as a JSON L file that gets committed to your repo. And because of that, that means you can hook it into your git system. You can share these things. You can assign tasks. You can have a whole conbon board setup. It's really sick. So, I'm going to show you a demo really quick. We're going to install it in a project. I'm going to show you a little bit of how to use it and then we're going to connect it to some other tools and you're going to just see just how incredible this tool can be with other tools. So, the install for this thing is really simple. You can install it just via npm. There's even a quick install via curl. You can even install them via Homebrew if you want to do that. I already have it installed and I have this application right here which is just my own personal website. It's in flux. The website looks like trash. If you visit it, you'll see why there's going to be so many things that I'd like to fix on this thing. So, since I don't have beads configured or anything, we can do bdinit in this thing. And it's going to check to see a number of things. It's going to make sure you have a git repository set up. It then is going to initialize BD by creating a beads directory and the database. It's going to set up a prefix which is just going to be the project name. So your issues are going to be uh prefixed with the name. In this case, it's Tinsky. And then you can see you could run BD quickart to get started. However, it does say the setup was incomplete. Now every single time I've had to get uh this going, I've gotten this run BD Doctor to fix every time. And for the most part, that's that's no big deal. When you run this, sometimes it fixes some of the things and sometimes it says it can't fix some of the things. Many of which are just adding the git hooks in. And these git hooks are really great because that allows the database to reync itself after git pulls and pushes and those types of things. But for the most part, this will all get set up once you're in your coding agent and then you run your BD onboard. Now you can run from the CLI if you want to just BD setup claude if you're using claude or BD onboard or you can head right into your claude or your open code and you can say use BD onboard to get started with beads. And this is going to do a number of things. It's going to run the BD onboard command. And what that's going to do is it's going to get your agents file, your claude file, and it's going to set them up with some default text. Much of this text is going to be uh stuff like don't use your internal to-do tracking, use beads for all to to-do tracking, don't create markdown files for this type of thing, which is great because it makes this all organized. Now, beads is more than just to-dos. There's also a a priority assignment. You can do epics. you can really nest things and you can have some issues that rely on other issues that are blocked by some issues and then therefore when you tell beads to get to work on something, it only brings into context the item that it actually wants to work on rather than having to load up a whole MD file and parse through it, right? Um, you can see here that this initial file that it's creating again is really just instructions about to how to use the beads. Uh, and for the most part, I found that simply just having this as your agents.md uh, and as well as your claude.md works perfectly fine when using with claude code. And, uh, it should work with any of your other systems. Like if you had a copilot stuff set up, it would also want to initialize this for copilot as well. So, it does a great job of discovery. Now, because of this, you can tell this via the CLI. There's a nice CLI. You can tell that to run and create things or you can just tell the AI to create a new issue with BD create or you can just tell inside of Claude to create task that is uh let's just say fix header. Okay. Now I don't actually have a task for fix header but you'll see that this is going to create a task for that. Um and it did run BD create. It has the task tag and how here we have a BD header. Now there's a number of things you can do from here and in fact if we head to another term of the same project I could do something like BD list and that's going to show me the items that are available. And you could also have one called BD ready which is going to show you the items that have no blockers. Again, this makes it really nice for the AI to say, "All right, what can I actually work on right now that there's no blockers and and that's really super cool." Now, so you can visualize some more of this, I'm actually going to have the AI bring in a whole bunch more tasks where I'm going to, tell, it, to,, in in, fact,, because, I know there's a ton of linting errors in the site. run spelt or run PNPM check and add errors to BD tasks. Okay. And this is going to go through it's going to run the spelt check command which includes a bunch of linting errors and actual issues or TypeScript problems. And it's then going to then take that output and then create tasks for those that I need to do or the AI needs to do. Either way, this system is really super good at keeping everything organized. And like I said because it writes to a JSON L file that you commit to your repo, well, anytime that you are pushing and pulling everybody's as they're working on their project should be able to get that updated task list from what needs to be done. And because there's a whole priority system, you can give the AI a bit more idea of what are the high priority things, what are blocked and non-blocked. If anybody else has ever tried to do this with their own bespoke markdown system, you'll know that the AI can really drift from it. And I found that this does a really good job of doing that. So now you can see that it has created a bunch of tasks. If I go ahead and say BD list once more, you can see I have a whole bunch more. Now beads also has a number of extensions and various things to go along. In fact there is a UI that you can get just via npm install beads UI or you can run it with npx uh beads UI and have an actual web UI interface if you like that. I've been personally really liking the BV terminal UI. And I'm not even a TUI kind of guy. I love my actual web UIs, but I've been really liking the terminal UI for this. and you can install it with a a quick little one curl and then from the project that you're in you can just type bv and then you're going to get access to this really nice terminal UI. Now I'm zoomed in so typically you see a lot more information here than what you're seeing but you actually have access to all kinds of these are the information. These are bugs. This is a task. This is a bug. And you can see that there's these nice little emojis. So like fix sidebar layout map type error. So, if I click this and I look at this, I get the details about this. Now you can see that there's all kinds of information from what the priority is to who it's assigned to and just general details. I'm going to show you a really killer technique in just a minute here uh that you can have the AI solve bugs for you like instantly. It's awesome. Now, more than just that, there's also like the conbon board view and stuff. So, if you hit B, you can get access to that. Again, I'm in some really zoomed in view, but this TUI here I found to be excellent, especially for visualizing what's going on. Let me even see if I zoom out of this particular window if it re and you can see as I zoom out of this, we actually get access to considerably more information here or without having to open them up. And also, as your projects grow inside of this graph analysis section, it shows you which issues rely on which issues which are blocked by which issues. And it is just really fantastic. So now with that, we could just tell the AI to find all open tasks with the label of bug and fix them. Okay, this is going to go off and do all of that. Okay, since this isn't code that I'm going to keep and I just want to use this as a demonstration, I'm going to just say, "Hey Claude, yolo, go fix all this stuff." And I instead of approving the code like I typically would, I'm just going to let it rip. And then we can see as it goes in action it's actually taking different tasks and setting them to be in progress. And eventually we'll close them after they've been fixed. And this will all happen in real time, so you can check things out as they go. And with that, it went through and actually completed most of these tasks, which by all means were mostly easy. And since I didn't actually check the code, I don't even know if they were fixed accurately. Uh, but at least this system was able to maintain that issues uh tracking without me giving it any additional guidance. And it even came back and told me what the remaining open tasks were, what they were, and where I can go to fix them. So, I think this is really, really cool. Okay, now I'm going to show you something that will blow your mind. Now I use Sentry to track all of my errors in my applications. I have this production app. It's using Sentry. There's a number of errors in the past 14 days here. Not that many, but I would like to be able to attack them in a structured way. Now, many times I might create a GitHub issue from them and then start there. But I found this to be really nice. So, I'm going to say use century MCP to find all errors in the last 14 days for the project habit path on level up tutorials is the organization and it's going to go through and find all of these issues. I want you to add these as BD tasks with the description containing the URL all relevant info and the sear root cause of the issue. Now this is going to go off. It's going to use the century MCP. It's going to find these uh these bugs in the last 14 days and then it's going to not only catalog them as tasks to do as bugs, but it's even going to run century seer AI that finds the root cause and it's going to put the answer to what the solution to the bug is directly in the description. That mean when I want to assign an agent to work on any of these I really just have to say, "Hey, find the next ready available bug and fix it." It's not going to have to do any of that guesswork because Sentry has already done that work for us and Beads has done the work to catalog everything. So that way we're not bloating our context with a bunch of unrelevant information that is stored in markdown files or tasks that we've already completed. and then therefore the end results end up being endlessly better. I'm not kidding when I say this is a killer workflow. This works so stinking well and I have been very very impressed with this. So it looks like it's going off and creating some of these. I'm going to go ahead and run BV so that way we can see exactly what these look like in the meantime. So I'm going to head over to my other term. I'm going to run BV. We now have several tasks. So, let's go ahead and open one of these bad boys up. And I found structured cloned is not defined. We're going to open this thing up. It has the sentry issue linked here. It has the description and it has the SEIR analysis of what actually went wrong. The reference error occurs because structured clone lacks a polyfill for Chrome 79, which is 19 versions too old for native support. So this was even able to know because Sentry has that information that the user was trying to load this on Chrome version 79 and therefore structured clone was not available. And here's how to fix it. So now when I go off and tell the AI, it's going to have all of this direct context. How cool is that? And then after this, it's going to want to run BD sync. This is going to sync. So that way uh anything that exists and it it doesn't have some workree stuff, it it doesn't matter because this is all going to get taken care of with the git hooks that were installed for us. Anyways, so here we go. We have all of our missing tasks here and we can start knocking them off one by one, fixing those bugs and then closing those century issues as we go. So I found this to be really cool. Now, this project has a number of really cool things about the documentation, including a whole section on what they call landing the plane which is an example of a agent's MD file that they have that explicitly tells exactly what to do to land the plane whether that is running git push, uh get stash- clear, these types of things. You could essentially bake this into your workflow is that after you complete each task, what you want to do is go through and run spelt check or run your linting or run your testing before marking this as completed. And then if something else pops up, you can then create a new task with a higher priority that the AI can go and fix then and mark it. This thing is so stinking cool. I've been really, really loving this project. And not only that, there's a great VS Code extension for it. if you're the type of person who likes a UI like I do. So check it out. Beads is a really neat project. It's really easy to install and I found personally it solves a lot of the problems that I had after not using Curo and moving to other systems while also keeping everything maintainable and a nice easy way to work. This is a deep well and a deeper well than I've gotten into in this video. So, please check this out, read through this, and let me know how are you using this if you are or is this the first time that you've heard about it? Because I do think that there's a lot of really cool things that you can be done with this, and I've only started to scratch the surface. So check out beads if you haven't
+
+https://www.youtube.com/watch?v=EsFa7W-FYdM
+Picture this. You're working on a project in Claude. Then context fills up. So you start a new conversation. Then all of a sudden the agent doesn't know what to do next. Sure, you can add a markdown file, but for large projects that can take up a lot of context, and it's easy for the agent to mess up priorities. Beads aims to fix all of that by giving your agent an issue tracker that can be version controlled and can even be synced to Jira. But why would anyone use this over SpecKit or Kira? Let's find out. And before we do, don't forget to hit subscribe. Beads was created by the ex head of engineering at SourceCraft, the same company that created AMP, as a way to chain issues together so that agents can perform complex tasks in the right order, which is what we're going to do with this project and app to help me view my brew packages. After setting up beads in the project, we should have a beads folder which contains an SQLite database for all of our issues along with some other database files, our issues in a JSON lines format, the beads demon to autoexport database changes to JSONL for git compatibility, and the socket enables storage and retrieval of issues via CLI commands. We'll talk more about CLI commands a bit later, but basically for the other files, they work in a really cool way. Take a look at this. So because only JSONL files are committed to the git repo, not the SQLite binaries, if someone pushes a change to git and someone else pulls that change, the user pulls the updated JSONL file, merge conflicts are resolved if there are any and the data is updated in the SQLite database, meaning user A will have the same issues as user B. This is known as a two-way sync, which is really [music] cool. But at this point, we don't have any issues. So let's create one which we can either do in the CLI use the beads MCP server or just ask your coding agent directly which will create all these issues and even put them under the epic with correct P levels. From here we can update or delete issues if we don't think they're needed. Then when you're ready you can get your agent to start working on the issues and it will automatically update them with the relevant progress until there are no more open issues and the project is completed. Of course, from here you could go on to add more issues, epics, even use a project specific database. And if you don't want to keep running commands to view the status of issues, you could use the web UI or even sync it with Jira. And for large projects, if your database ends up growing in size, beads has a compaction feature that reduces the size of a database by compressing old closed issues while preserving their essential context. But why would I use beads over the more popular specd driven development? Well, the biggest benefit is context. With spec kit and other tools, you have markdown and prd files, some of which the agent needs to load in entirely, which takes up a lot of context. But with beads, the agents can just query the database to get the information it needs, which works especially well for issues with dependencies since the relationship is more explicit instead of being part of a list. Meaning the LLM can just follow the dependency graph and the human so me is never afraid of clearing the context because information is never lost. Not to mention the two-way syncing mechanism is better for multiple agents even on different machines to collaborate on the same project. Personally, the mental model of having issues, assignees, estimations, and epics is much easier for me to get my head around instead of thinking of PRDs. But I do prefer the emphasis on planning when it comes to specd driven development that seems to be missing from beads. So, one approach would be to create a detailed markdown file using something like spec kit and then using beads to create the epics and issues. But maybe it's just overkill for a small to medium project. Anyway, what are your thoughts on beads? Are you planning to use it in a future project? Let me know your thoughts in the comments. Again, don't forget to subscribe.
+
+https://github.com/steveyegge/beads/tree/main
+bd quickstart
+chaschel@xia:~/Documents/ibm/go/base$ bd quickstart
+
+bd - Dependency-Aware Issue Tracker
+
+Issues chained together like beads.
+
+GETTING STARTED
+  bd init   Initialize bd in your project
+            Creates .beads/ directory with project-specific database
+            Auto-detects prefix from directory name (e.g., myapp-1, myapp-2)
+
+  bd init --prefix api   Initialize with custom prefix
+            Issues will be named: api-<hash> (e.g., api-a3f2dd)
+
+CREATING ISSUES
+  bd create "Fix login bug"
+  bd create "Add auth" -p 0 -t feature
+  bd create "Write tests" -d "Unit tests for auth" --assignee alice
+
+VIEWING ISSUES
+  bd list       List all issues
+  bd list --status open  List by status
+  bd list --priority 0  List by priority (0-4, 0=highest)
+  bd show bd-1       Show issue details
+
+MANAGING DEPENDENCIES
+  bd dep add bd-1 bd-2     Add dependency (bd-2 blocks bd-1)
+  bd dep tree bd-1  Visualize dependency tree
+  bd dep cycles      Detect circular dependencies
+
+DEPENDENCY TYPES
+  blocks  Task B must complete before task A
+  related  Soft connection, doesn't block progress
+  parent-child  Epic/subtask hierarchical relationship
+  discovered-from  Auto-created when AI discovers related work
+
+READY WORK
+  bd ready       Show issues ready to work on
+            Ready = status is 'open' AND no blocking dependencies
+            Perfect for agents to claim next work!
+
+UPDATING ISSUES
+  bd update bd-1 --status in_progress
+  bd update bd-1 --priority 0
+  bd update bd-1 --assignee bob
+
+CLOSING ISSUES
+  bd close bd-1
+  bd close bd-2 bd-3 --reason "Fixed in PR #42"
+
+DATABASE LOCATION
+  bd automatically discovers your database:
+    1. --db /path/to/db.db flag
+    2. $BEADS_DB environment variable
+    3. .beads/*.db in current directory or ancestors
+    4. ~/.beads/default.db as fallback
+
+AGENT INTEGRATION
+  bd is designed for AI-supervised workflows:
+    • Agents create issues when discovering new work
+    • bd ready shows unblocked work ready to claim
+    • Use --json flags for programmatic parsing
+    • Dependencies prevent agents from duplicating effort
+
+DATABASE EXTENSION
+  Applications can extend bd's SQLite database:
+    • Add your own tables (e.g., myapp_executions)
+    • Join with issues table for powerful queries
+    • See database extension docs for integration patterns:
+      https://github.com/steveyegge/beads/blob/main/EXTENDING.md
+
+GIT WORKFLOW (AUTO-SYNC)
+  bd automatically keeps git in sync:
+    • ✓ Export to JSONL after CRUD operations (5s debounce)
+    • ✓ Import from JSONL when newer than DB (after git pull)
+    • ✓ Works seamlessly across machines and team members
+    • No manual export/import needed!
+  Disable with: --no-auto-flush or --no-auto-import
+
+
+
+
+----
+# Agent Instructions
+
+This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
+
+## Quick Reference
+
+```bash
+bd ready              # Find available work
+bd show <id>          # View issue details
+bd update <id> --status in_progress  # Claim work
+bd close <id>         # Complete work
+bd sync               # Sync with git
+```
+
+## Landing the Plane (Session Completion)
+
+**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
+
+**MANDATORY WORKFLOW:**
+
+1. **File issues for remaining work** - Create issues for anything that needs follow-up
+2. **Run quality gates** (if code changed) - Tests, linters, builds
+3. **Update issue status** - Close finished work, update in-progress items
+4. **PUSH TO REMOTE** - This is MANDATORY:
+   ```bash
+   git pull --rebase
+   bd sync
+   git push
+   git status  # MUST show "up to date with origin"
+   ```
+5. **Clean up** - Clear stashes, prune remote branches
+6. **Verify** - All changes committed AND pushed
+7. **Hand off** - Provide context for next session
+
+**CRITICAL RULES:**
+- Work is NOT complete until `git push` succeeds
+- NEVER stop before pushing - that leaves work stranded locally
+- NEVER say "ready to push when you are" - YOU must push
+- If push fails, resolve and retry until it succeeds
+
+
+
+----
+# Beads Quickstart
+
+Get up and running with Beads in 2 minutes.
+
+## Installation
+
+```bash
+cd ~/src/beads
+go build -o bd ./cmd/bd
+./bd --help
+```
+
+## Initialize
+
+First time in a repository:
+
+```bash
+# Basic setup
+bd init
+
+# OSS contributor (fork workflow with separate planning repo)
+bd init --contributor
+
+# Team member (branch workflow for collaboration)
+bd init --team
+
+# Protected main branch (GitHub/GitLab)
+bd init --branch beads-sync
+```
+
+The wizard will:
+- Create `.beads/` directory and database
+- Import existing issues from git (if any)
+- Prompt to install git hooks (recommended)
+- Prompt to configure git merge driver (recommended)
+- Auto-start daemon for sync
+
+## Your First Issues
+
+```bash
+# Create a few issues
+./bd create "Set up database" -p 1 -t task
+./bd create "Create API" -p 2 -t feature
+./bd create "Add authentication" -p 2 -t feature
+
+# List them
+./bd list
+```
+
+**Note:** Issue IDs are hash-based (e.g., `bd-a1b2`, `bd-f14c`) to prevent collisions when multiple agents/branches work concurrently.
+
+## Hierarchical Issues (Epics)
+
+For large features, use hierarchical IDs to organize work:
+
+```bash
+# Create epic (generates parent hash ID)
+./bd create "Auth System" -t epic -p 1
+# Returns: bd-a3f8e9
+
+# Create child tasks (automatically get .1, .2, .3 suffixes)
+./bd create "Design login UI" -p 1       # bd-a3f8e9.1
+./bd create "Backend validation" -p 1    # bd-a3f8e9.2
+./bd create "Integration tests" -p 1     # bd-a3f8e9.3
+
+# View hierarchy
+./bd dep tree bd-a3f8e9
+```
+
+Output:
+```
+🌲 Dependency tree for bd-a3f8e9:
+
+→ bd-a3f8e9: Auth System [epic] [P1] (open)
+  → bd-a3f8e9.1: Design login UI [P1] (open)
+  → bd-a3f8e9.2: Backend validation [P1] (open)
+  → bd-a3f8e9.3: Integration tests [P1] (open)
+```
+
+## Add Dependencies
+
+```bash
+# API depends on database
+./bd dep add bd-2 bd-1
+
+# Auth depends on API
+./bd dep add bd-3 bd-2
+
+# View the tree
+./bd dep tree bd-3
+```
+
+Output:
+```
+🌲 Dependency tree for bd-3:
+
+→ bd-3: Add authentication [P2] (open)
+  → bd-2: Create API [P2] (open)
+    → bd-1: Set up database [P1] (open)
+```
+
+## Find Ready Work
+
+```bash
+./bd ready
+```
+
+Output:
+```
+📋 Ready work (1 issues with no blockers):
+
+1. [P1] bd-1: Set up database
+```
+
+Only bd-1 is ready because bd-2 and bd-3 are blocked!
+
+## Work the Queue
+
+```bash
+# Start working on bd-1
+./bd update bd-1 --status in_progress
+
+# Complete it
+./bd close bd-1 --reason "Database setup complete"
+
+# Check ready work again
+./bd ready
+```
+
+Now bd-2 is ready! 🎉
+
+## Track Progress
+
+```bash
+# See blocked issues
+./bd blocked
+
+# View statistics
+./bd stats
+```
+
+## Database Location
+
+By default: `~/.beads/default.db`
+
+You can use project-specific databases:
+
+```bash
+./bd --db ./my-project.db create "Task"
+```
+
+## Migrating Databases
+
+After upgrading bd, use `bd migrate` to check for and migrate old database files:
+
+```bash
+# Inspect migration plan (AI agents)
+./bd migrate --inspect --json
+
+# Check schema and config
+./bd info --schema --json
+
+# Preview migration changes
+./bd migrate --dry-run
+
+# Migrate old databases to beads.db
+./bd migrate
+
+# Migrate and clean up old files
+./bd migrate --cleanup --yes
+```
+
+**AI agents:** Use `--inspect` to analyze migration safety before running. The system verifies required config keys and data integrity invariants.
+
+## Database Maintenance
+
+As your project accumulates closed issues, the database grows. Manage size with these commands:
+
+```bash
+# View compaction statistics
+bd compact --stats
+
+# Preview compaction candidates (30+ days closed)
+bd compact --analyze --json --no-daemon
+
+# Apply agent-generated summary
+bd compact --apply --id bd-42 --summary summary.txt --no-daemon
+
+# Immediately delete closed issues (CAUTION: permanent!)
+bd cleanup --force
+```
+
+**When to compact:**
+- Database file > 10MB with many old closed issues
+- After major project milestones when old issues are no longer relevant
+- Before archiving a project phase
+
+**Note:** Compaction is permanent graceful decay. Original content is discarded but viewable via `bd restore <id>` from git history.
+
+## Background Daemon
+
+bd runs a background daemon for auto-sync and performance. You rarely need to manage it directly:
+
+```bash
+# Check daemon status
+bd info | grep daemon
+
+# List all running daemons
+bd daemons list
+
+# Force direct mode (skip daemon)
+bd --no-daemon ready
+```
+
+**When to disable daemon:**
+- Git worktrees (required: `bd --no-daemon`)
+- CI/CD pipelines
+- Resource-constrained environments
+
+See [DAEMON.md](DAEMON.md) for complete daemon management guide.
+
+## Next Steps
+
+- Add labels: `./bd create "Task" -l "backend,urgent"`
+- Filter ready work: `./bd ready --priority 1`
+- Search issues: `./bd list --status open`
+- Detect cycles: `./bd dep cycles`
+
+See [README.md](../README.md) for full documentation.
