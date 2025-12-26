@@ -117,6 +117,10 @@ const MemoEditor = observer((props: Props) => {
   }, [autoFocus]);
 
   useAsyncEffect(async () => {
+    if (!userSetting) {
+      // Wait for user settings to load
+      return;
+    }
     let visibility = convertVisibilityFromString(userSetting.memoVisibility);
     if (workspaceMemoRelatedSetting.disallowPublicVisibility && visibility === Visibility.PUBLIC) {
       visibility = Visibility.PROTECTED;
@@ -129,7 +133,7 @@ const MemoEditor = observer((props: Props) => {
       ...prevState,
       memoVisibility: convertVisibilityFromString(visibility),
     }));
-  }, [parentMemoName, userSetting.memoVisibility, workspaceMemoRelatedSetting.disallowPublicVisibility]);
+  }, [parentMemoName, userSetting, userSetting?.memoVisibility, workspaceMemoRelatedSetting.disallowPublicVisibility]);
 
   useAsyncEffect(async () => {
     if (!memoName) {

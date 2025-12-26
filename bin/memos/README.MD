@@ -223,3 +223,25 @@ Implement a notification system where users are notified when mentioned (`@nickn
 
 ### Automated Tests
 -   Verify backend parsing logic via unit test (if possible to add easily) or rely on manual verification given the "prototype" nature constraints.
+
+
+
+
+---
+beads integration
+
+https://github.com/mantoni/beads-ui
+
+npm i beads-ui -g
+# In your project directory:
+bdui start --open
+
+http://127.0.0.1:3000/#/board
+
+
+
+----
+prompt for beads integration
+
+1. copy AGENTS.MD in base folder to your repo folder
+2. in antigravity, enter this prompt: read AGENTS.MD and strictly follow it using its beads workflow guidelines to fix the error, ask me if you need clarification

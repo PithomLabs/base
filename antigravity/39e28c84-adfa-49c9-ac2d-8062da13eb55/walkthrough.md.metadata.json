@@ -1,0 +1,5 @@
+{
+  "artifactType": "ARTIFACT_TYPE_WALKTHROUGH",
+  "summary": "Complete guide to the beads integration implementation covering database schema, backend changes, BD CLI integration, API layer updates, and next steps for testing and deployment. Includes details on strict bd CLI enforcement, agent workflow logging, and migration instructions.",
+  "updatedAt": "2025-12-26T12:05:35.514645684Z"
+}

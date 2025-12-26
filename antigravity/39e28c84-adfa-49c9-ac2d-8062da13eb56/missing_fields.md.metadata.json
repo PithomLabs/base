@@ -1,0 +1,5 @@
+{
+  "artifactType": "ARTIFACT_TYPE_OTHER",
+  "summary": "Quick reference showing missing ticket form fields: labels (beads tags), tags (legacy), parent_id (epics), dependencies (blockers), discovery_context, and closed_reason. Includes code examples for adding them to the form.",
+  "updatedAt": "2025-12-26T13:11:53.162650903Z"
+}

@@ -1,0 +1,5 @@
+{
+  "artifactType": "ARTIFACT_TYPE_TASK",
+  "summary": "Breakdown of implementation tasks for integrating bd (beads) CLI with the existing ticket system, including database migrations, backend integration, API updates, frontend changes, and testing phases.",
+  "updatedAt": "2025-12-26T11:39:48.547859286Z"
+}

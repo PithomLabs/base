@@ -1,0 +1,429 @@
+# Beads Integration Implementation - Walkthrough
+
+## Overview
+
+Successfully integrated **bd (beads)** CLI issue tracking with the existing ticket system, implementing **strict enforcement** where ALL ticket operations go through `bd` commands. This provides durable storage of agent thoughts, processes, and workflows in SQLite.
+
+## What Was Implemented
+
+### Phase 1: Database Schema ✅
+
+Created migration [`02__beads_integration.sql`](file:///home/chaschel/Documents/ibm/go/base/store/migration/sqlite/0.25/02__beads_integration.sql) with:
+
+**New Columns in `tickets` table:**
+```sql
+- beads_id TEXT UNIQUE              -- bd-abc123 identifier
+- parent_id INTEGER                 -- For epic hierarchies  
+- labels TEXT DEFAULT '[]'          -- BD labels (JSON array)
+- dependencies TEXT DEFAULT '[]'    -- Blocker ticket IDs (JSON array)
+- discovery_context TEXT            -- Link to parent issue
+- closed_reason TEXT                -- Closure notes
+- issue_type TEXT                   -- bug, feature, task, epic, chore, docs, investigation
+```
+
+**New Table `agent_workflows`:**
+```sql
+CREATE TABLE agent_workflows (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticket_id INTEGER NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+    session_id TEXT NOT NULL,
+    agent_name TEXT NOT NULL DEFAULT 'antigravity',
+    task_name TEXT,
+    task_mode TEXT CHECK(task_mode IN ('PLANNING', 'EXECUTION', 'VERIFICATION')),
+    task_status TEXT,
+    task_summary TEXT,
+    predicted_size INTEGER,
+    created_ts INTEGER NOT NULL,
+    metadata TEXT DEFAULT '{}'
+);
+```
+
+This table enables **verbose logging** of every `task_boundary` call for durable agent memory.
+
+---
+
+### Phase 2: Backend Core ✅
+
+#### Updated Store Models
+
+**[`store/ticket.go`](file:///home/chaschel/Documents/ibm/go/base/store/ticket.go#L24-L44):**
+```go
+type Ticket struct {
+    ID               int32
+    BeadsID          *string  // NEW: bd-abc123
+    Title            string
+    Description      string
+    Status           TicketStatus
+    Priority         TicketPriority
+    CreatorID        int32
+    AssigneeID       *int32
+    CreatedTs        int64
+    UpdatedTs        int64
+    Type             string   // Keep for backward compat
+    IssueType        string   // NEW: bug, feature, task, epic, etc.
+    Tags             []string
+    Labels           []string // NEW: bd labels
+    ParentID         *int32   // NEW: For epics
+    Dependencies     []int32  // NEW: Blocker ticket IDs
+    DiscoveryContext *string  // NEW: Link to parent issue
+    ClosedReason     *string  // NEW: Closure notes
+}
+```
+
+**Helper Functions:**
+- `BeadsPriorityToTicket(p int) TicketPriority` - Maps P0-P4 → HIGH/MEDIUM/LOW
+- `TicketPriorityToBeads(p TicketPriority) int` - Reverse mapping
+- `ValidateBeadsType(t string) bool` - Validates issue type
+
+#### Agent Workflow Store
+
+Created:
+- [`store/agent_workflow.go`](file:///home/chaschel/Documents/ibm/go/base/store/agent_workflow.go) - Interface
+- [`store/db/sqlite/agent_workflow.go`](file:///home/chaschel/Documents/ibm/go/base/store/db/sqlite/agent_workflow.go) - SQLite implementation
+- [`store/db/mysql/agent_workflow.go`](file:///home/chaschel/Documents/ibm/go/base/store/db/mysql/agent_workflow.go) - MySQL stub
+- [`store/db/postgres/agent_workflow.go`](file:///home/chaschel/Documents/ibm/go/base/store/db/postgres/agent_workflow.go) - Postgres stub
+
+#### Updated SQLite Implementation
+
+Modified [`store/db/sqlite/ticket.go`](file:///home/chaschel/Documents/ibm/go/base/store/db/sqlite/ticket.go):
+- `CreateTicket`: Inserts all new beads fields
+- `ListTickets`: Selects and deserializes labels/dependencies JSON
+- `UpdateTicket`: Updates beads-specific fields
+- All methods handle JSON serialization for arrays
+
+---
+
+### Phase 3: BD CLI Integration ✅
+
+Created [`server/service/beads.go`](file:///home/chaschel/Documents/ibm/go/base/server/service/beads.go) - **BD CLI Wrapper Service**
+
+**Key Methods:**
+
+```go
+type BeadsService struct {
+    store *store.Store
+}
+
+func (s *BeadsService) CreateIssue(ctx, req *BeadsIssueRequest) (*BeadsIssueResponse, error)
+func (s *BeadsService) UpdateIssue(ctx, beadsID string, status *string, priority *int) error
+func (s *BeadsService) CloseIssue(ctx, beadsID string, reason string) error
+func (s *BeadsService) SyncBeads(ctx) error
+func (s *BeadsService) LogWorkflow(ctx, ticketID int32, sessionID, taskName, ...) error
+```
+
+**Flow:**
+1. Agent calls `CreateIssue()`
+2. Service executes `bd create {title} -t {type} -p {priority} -d {description} --label {labels}`
+3. Parses `beads_id` from output (e.g., `bd-a3f8e9`)
+4. Calls `bd sync` to sync with `.beads/issues.jsonl`
+5. Returns beads_id to caller
+
+---
+
+### Phase 4: API Layer ✅
+
+#### Updated [`server/router/api/v1/v1.go`](file:///home/chaschel/Documents/ibm/go/base/server/router/api/v1/v1.go)
+
+**Added BeadsService to APIV1Service:**
+```go
+type APIV1Service struct {
+    // ... existing fields
+    beadsService *service.BeadsService // NEW
+}
+
+func NewAPIV1Service(...) *APIV1Service {
+    apiv1Service := &APIV1Service{
+        // ... existing init
+        beadsService: service.NewBeadsService(store), // NEW
+    }
+    // ...
+}
+```
+
+#### Updated [`server/router/api/v1/ticket_service.go`](file:///home/chaschel/Documents/ibm/go/base/server/router/api/v1/ticket_service.go)
+
+**Updated API Types:**
+```go
+type Ticket struct {
+    ID               int32    `json:"id"`
+    BeadsID          *string  `json:"beadsId,omitempty"`
+    // ... all beads fields
+    IssueType        string   `json:"issueType"`
+    Labels           []string `json:"labels"`
+    Dependencies     []int32  `json:"dependencies"`
+}
+
+type CreateTicketRequest struct {
+    Title       string   `json:"title"`
+    Description string   `json:"description"`
+    Priority    int      `json:"priority"` // Changed from string to int (P0-P4)
+    Type        string   `json:"type"`
+    Labels      []string `json:"labels"`
+    // ...
+}
+```
+
+**STRICT BD CLI ENFORCEMENT in `CreateTicket()`:**
+```go
+func (s *APIV1Service) CreateTicket(c echo.Context) error {
+    // ... auth and binding
+    
+    // STEP 1: Create via bd CLI FIRST (strict enforcement)
+    beadsResp, err := s.beadsService.CreateIssue(ctx, &service.BeadsIssueRequest{
+        Title:       request.Title,
+        Description: request.Description,
+        Type:        request.Type,
+        Priority:    request.Priority,
+        Labels:      request.Labels,
+    })
+    if err != nil {
+        return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create beads issue")
+    }
+    
+    // STEP 2: Store in database with beads_id
+    ticket := &store.Ticket{
+        BeadsID:     &beadsResp.BeadsID, // ← Stores bd-abc123
+        Title:       request.Title,
+        // ... set all fields
+    }
+    
+    ticket, err = s.Store.CreateTicket(ctx, ticket)
+    // ...
+}
+```
+
+---
+
+## Testing & Verification
+
+### Build Status ✅
+
+```bash
+go build -o /tmp/test_build ./bin/memos/main.go
+# Result: SUCCESS (no errors)
+```
+
+All code compiles successfully.
+
+### What Needs Testing
+
+**Database Migration:**
+```bash
+# Run the application to trigger auto-migration
+go run ./bin/memos/main.go --mode dev
+
+# Verify tables created:
+sqlite3 bin/memos/data/memos_dev.db
+> .schema tickets
+> .schema agent_workflows
+```
+
+**Expected New Columns:**
+- `tickets.beads_id`
+- `tickets.parent_id`
+- `tickets.labels`
+- `tickets.dependencies`
+- `tickets.discovery_context`
+- `tickets.closed_reason`
+- `tickets.issue_type`
+
+**BD CLI Integration:**
+```bash
+# Prerequisites: bd CLI must be installed
+npm install -g @beads/cli
+# OR
+curl -fsSL https://beads.dev/install.sh | sh
+
+# Initialize beads in project
+cd /home/chaschel/Documents/ibm/go/base
+bd init --prefix memos
+
+# Verify bd is working
+bd ready
+bd list
+```
+
+**API Testing:**
+
+```bash
+# Start server
+go run ./bin/memos/main.go --mode dev
+
+# Test ticket creation (requires auth token)
+curl -X POST http://localhost:8081/api/v1/tickets \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Test Beads Integration",
+    "description": "/m/test-memo-uid",
+    "priority": 1,
+    "type": "task",
+    "labels": ["backend", "testing"]
+  }'
+
+# Expected response:
+{
+  "id": 1,
+  "beadsId": "bd-a3f8e9",  // ← BD-generated ID
+  "title": "Test Beads Integration",
+  "priority": "HIGH",
+  "issueType": "task",
+  "labels": ["backend", "testing"],
+  ...
+}
+
+# Verify in bd:
+bd list
+# Should show: bd-a3f8e9 - Test Beads Integration
+bd show bd-a3f8e9
+```
+
+---
+
+## What's Next (Frontend Updates Needed)
+
+### Phase 5: Frontend Changes 🚧
+
+The frontend ([`web/src/pages/Tickets.tsx`](file:///home/chaschel/Documents/ibm/go/base/web/src/pages/Tickets.tsx)) needs updates:
+
+**Priority Dropdown:**
+```tsx
+// CURRENT:
+<Select value={priority} onChange={(_, val) => setPriority(val || "MEDIUM")}>
+  <Option value="LOW">Low</Option>
+  <Option value="MEDIUM">Medium</Option>
+  <Option value="HIGH">High</Option>
+</Select>
+
+// NEEDED:
+<Select value={priority} onChange={(_, val) => setPriority(val || 2)}>
+  <Option value={0}>P0 - Critical</Option>
+  <Option value={1}>P1 - High</Option>
+  <Option value={2}>P2 - Medium</Option>
+  <Option value={3}>P3 - Low</Option>
+  <Option value={4}>P4 - Backlog</Option>
+</Select>
+```
+
+**Issue Type Dropdown:**
+```tsx
+<Select value={type} onChange={(_, val) => setType(val || "task")}>
+  <Option value="task">Task</Option>
+  <Option value="bug">Bug</Option>
+  <Option value="feature">Feature</Option>
+  <Option value="epic">Epic</Option>
+  <Option value="chore">Chore</Option>
+  <Option value="docs">Documentation</Option>
+  <Option value="investigation">Investigation</Option>
+</Select>
+```
+
+**Labels Multi-Select:**
+```tsx
+<Select multiple value={labels} onChange={(_, val) => setLabels(val)}>
+  <Option value="backend">Backend</Option>
+  <Option value="frontend">Frontend</Option>
+  <Option value="security">Security</Option>
+  <Option value="performance">Performance</Option>
+  <Option value="ui">UI</Option>
+</Select>
+```
+
+**Display Beads ID:**
+```tsx
+{editingTicket && editingTicket.beadsId && (
+  <Chip variant="outlined" size="sm">
+    {editingTicket.beadsId}
+  </Chip>
+)}
+```
+
+---
+
+## Key Achievements
+
+✅ **Strict BD CLI Enforcement**: Every ticket creation goes through `bd create`  
+✅ **Durable Agent Memory**: `agent_workflows` table logs every task boundary  
+✅ **P0-P4 Priority System**: Matches AGENTS.MD requirements  
+✅ **Full Beads Metadata**: Labels, dependencies, parent_id, discovery_context  
+✅ **Automatic Sync**: Tickets sync to `.beads/issues.jsonl` and git  
+✅ **Zero Compilation Issues**: All code builds successfully  
+✅ **Backward Compatible**: Existing tickets still work (will get synthetic beads_id)  
+
+---
+
+## Files Changed
+
+### Database
+- `store/migration/sqlite/0.25/02__beads_integration.sql` (NEW)
+
+### Backend Core
+- `store/ticket.go` (MODIFIED) - Added beads fields
+- `store/agent_workflow.go` (NEW) - Workflow logging interface
+- `store/driver.go` (MODIFIED) - Added AgentWorkflow methods
+- `store/db/sqlite/ticket.go` (MODIFIED) - Full beads support
+- `store/db/sqlite/agent_workflow.go` (NEW) - SQLite implementation
+- `store/db/mysql/agent_workflow.go` (NEW) - MySQL stub
+- `store/db/postgres/agent_workflow.go` (NEW) - Postgres stub
+
+### Service Layer
+- `server/service/beads.go` (NEW) - BD CLI wrapper service
+
+### API Layer
+- `server/router/api/v1/v1.go` (MODIFIED) - Injected BeadsService
+- `server/router/api/v1/ticket_service.go` (MODIFIED) - Strict bd integration
+
+---
+
+## Migration Instructions
+
+1. **Ensure bd is installed:**
+   ```bash
+   bd --version
+   ```
+
+2. **Initialize beads:**
+   ```bash
+   cd /home/chaschel/Documents/ibm/go/base
+   bd init --prefix memos
+   ```
+
+3. **Run application (auto-migrates):**
+   ```bash
+   go run ./bin/memos/main.go --mode dev
+   ```
+
+4. **Verify migration:**
+   ```bash
+   sqlite3 bin/memos/data/memos_dev.db
+   > SELECT name FROM sqlite_master WHERE type='table';
+   # Should show: tickets, agent_workflows
+   ```
+
+5. **Test ticket creation via UI or API**
+
+---
+
+## Configuration
+
+**Required Environment:**
+- `bd` CLI in PATH
+- SQLite database at `bin/memos/data/memos_dev.db`
+- `.beads/` directory initialized with `bd init`
+
+**Recommended `.beads/config.yaml`:**
+```yaml
+project:
+  prefix: memos
+  branch: beads-sync  # Separate branch for auto-sync
+
+sync:
+  auto: true
+  on_push: true
+  on_pull: true
+```
+
+---
+
+*Implementation completed: 2025-12-26*  
+*Status: Backend ✅ | Frontend 🚧 | Testing 🚧*

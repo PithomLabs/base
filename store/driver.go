@@ -85,6 +85,11 @@ type Driver interface {
 	UpdateTicket(ctx context.Context, update *UpdateTicket) (*Ticket, error)
 	DeleteTicket(ctx context.Context, delete *DeleteTicket) error
 
+	// AgentWorkflow model related methods.
+	CreateAgentWorkflow(ctx context.Context, create *CreateAgentWorkflow) (*AgentWorkflow, error)
+	ListAgentWorkflows(ctx context.Context, find *FindAgentWorkflow) ([]*AgentWorkflow, error)
+	GetAgentWorkflow(ctx context.Context, find *FindAgentWorkflow) (*AgentWorkflow, error)
+
 	// Notification model related methods.
 	CreateNotification(ctx context.Context, create *Notification) (*Notification, error)
 	ListNotifications(ctx context.Context, find *FindNotification) ([]*Notification, error)

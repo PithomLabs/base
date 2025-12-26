@@ -1,0 +1,5 @@
+{
+  "artifactType": "ARTIFACT_TYPE_OTHER",
+  "summary": "Quick deployment guide showing how to activate beads integration fixes: restart backend server with new binary, hard refresh browser, and verify ticket creation works with beads CLI integration.",
+  "updatedAt": "2025-12-26T14:01:47.766094230Z"
+}

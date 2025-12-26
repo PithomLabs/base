@@ -1,0 +1,171 @@
+# Implementation Plan: Fix Beads Integration Issues (AGENTS.MD Compliant)
+
+## Problem Summary
+
+We have beads integration code in place but discovered several bugs during testing:
+
+1. **Issue Type Case Mismatch** - Beads expects lowercase (`task`, `bug`) but frontend sends uppercase (`TASK`, `BUG`)
+2. **MemoEditor Crash** - `userSetting` can be undefined causing crash when adding memo description
+3. **Server Restart Required** - Users need to restart with new binary for fixes to take effect
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Following AGENTS.MD Workflow**: I will create beads issues for each bug BEFORE fixing them. This ensures all work is tracked in beads (the single source of truth).
+
+### Beads Issues to Create
+
+After your approval, I will create these beads issues:
+
+**Issue 1:**
+- **Title**: Fix issue type case conversion for beads CLI compatibility  
+- **Type**: bug
+- **Priority**: 1 (blocking ticket creation)
+- **Description**: Frontend sends uppercase `TASK`/`BUG`/`STORY` but beads CLI expects lowercase `task`/`bug`/`feature`. Current code converts to lowercase but server needs restart.
+- **Labels**: backend, beads, blocker
+
+**Issue 2:**
+- **Title**: Fix MemoEditor null reference error when userSetting undefined
+- **Type**: bug  
+- **Priority**: 1 (crashes ticket form)
+- **Description**: When adding memo description to new ticket, MemoEditor crashes with "Cannot read properties of undefined (reading 'memoVisibility')" because userSetting may not be loaded yet.
+- **Labels**: frontend, react, blocker
+
+**Issue 3:**
+- **Title**: Document server restart requirement for beads integration
+- **Type**: docs
+- **Priority**: 2  
+- **Description**: Users must restart backend server and hard refresh browser after code changes. Need clear deployment instructions.
+- **Labels**: docs, deployment
+
+Should I proceed to create these beads issues?
+
+---
+
+## Proposed Changes
+
+### 1. Verify Existing Fixes
+
+**Backend - Issue Type Conversion**
+- ✅ Already fixed in [`ticket_service.go`](file:///home/chaschel/Documents/ibm/go/base/server/router/api/v1/ticket_service.go#L122-L131)
+- Converts `TASK` → `task`, `STORY` → `feature`
+- Maps all types to lowercase before bd CLI call
+
+**Frontend - MemoEditor Safety**
+- ✅ Already fixed in [`MemoEditor/index.tsx`](file:///home/chaschel/Documents/ibm/go/base/web/src/components/MemoEditor/index.tsx#L120-L124)
+- Added null check for `userSetting` before accessing properties
+- Early return if settings not loaded yet
+
+### 2. Testing & Verification
+
+The code is fixed but server/browser need restart. No new code changes required.
+
+---
+
+## Verification Plan
+
+### Test 1: Backend Build Verification
+```bash
+cd /home/chaschel/Documents/ibm/go/base
+go build -o /tmp/memos_test ./bin/memos/main.go
+echo $?  # Should output 0 (success)
+```
+
+**Expected**: Build succeeds with no errors
+
+### Test 2: Frontend Build Verification  
+```bash
+cd /home/chaschel/Documents/ibm/go/base/web
+npm run build
+echo $?  # Should output 0 (success)
+```
+
+**Expected**: Build completes, generates `dist/` folder
+
+### Test 3: Manual Ticket Creation Test
+
+**Prerequisites**:
+1. Restart backend server with new binary
+2. Hard refresh browser (Ctrl + Shift + R)
+
+**Steps**:
+```
+1. Navigate to http://localhost:8081
+2. Sign in (ibm2100 / iBm1234)
+3. Click "Tickets" in sidebar
+4. Click "+ New Ticket"
+5. Fill in form:
+   - Title: "Test Beads Integration"
+   - Type: TASK
+   - Priority: MEDIUM  
+   - Labels: backend, testing
+   - Click "Add description" → Create memo
+6. Click "Create Ticket"
+```
+
+**Expected Results**:
+- ✅ No "invalid issue type: TASK" error
+- ✅ No "Cannot read properties of undefined" error  
+- ✅ Ticket created successfully
+- ✅ Check bd CLI: `bd list` shows new issue
+- ✅ Database has beads_id populated
+
+### Test 4: Verify Beads ID Assignment
+```bash
+# After Test 3 succeeds
+bd list  # Should show newly created issue
+
+# Check database
+sqlite3 bin/memos/data/memos_dev.db \
+  "SELECT id, title, beads_id, labels FROM tickets ORDER BY id DESC LIMIT 1;"
+```
+
+**Expected**: 
+- bd list shows issue with title "Test Beads Integration"
+- Database row has non-null beads_id matching bd CLI output
+- Labels stored as JSON array: `["backend","testing"]`
+
+---
+
+## AGENTS.MD Compliance Workflow
+
+After user approval, I will:
+
+1. **Create Beads Issues** (for each bug above)
+   ```bash
+   bd create "Fix issue type case conversion..." -t bug -p 1 --label backend,beads,blocker
+   bd create "Fix MemoEditor null reference..." -t bug -p 1 --label frontend,react,blocker
+   bd create "Document server restart..." -t docs -p 2 --label docs,deployment
+   ```
+
+2. **Claim Issues** (one at a time)
+   ```bash
+   bd update <issue-id> --status in_progress
+   ```
+
+3. **Execute Verification Tests** (no code changes needed, just verify fixes work)
+
+4. **Close Issues** (after tests pass)
+   ```bash
+   bd close <issue-id> --reason "Verified fixes work after server restart"
+   ```
+
+5. **Document & Push**
+   ```bash
+   git add .
+   git commit -m "docs: add beads integration verification and deployment notes"
+   git pull --rebase
+   bd sync
+   git push
+   ```
+
+---
+
+## Next Steps
+
+Please review and let me know if I should:
+- ✅ Create the beads issues as proposed above
+- ⏸️ Modify the proposed issues (priority, description, etc.)
+- ❌ Skip beads workflow and just verify fixes
+
+Once approved, I'll follow AGENTS.MD workflow strictly.

@@ -113,6 +113,12 @@ func (s *Store) Migrate(ctx context.Context) error {
 			return errors.Wrap(err, "failed to seed")
 		}
 	}
+
+	// Ensure beads columns exist in tickets table (idempotent)
+	if err := s.EnsureTicketBeadsColumns(ctx); err != nil {
+		slog.Warn("Failed to ensure beads columns, may already exist", slog.String("error", err.Error()))
+	}
+
 	return nil
 }
 

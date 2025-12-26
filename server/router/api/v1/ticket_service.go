@@ -1,37 +1,87 @@
 package v1
 
 import (
+	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/usememos/memos/server/service"
 	"github.com/usememos/memos/store"
 )
 
 type Ticket struct {
-	ID          int32    `json:"id"`
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	Status      string   `json:"status"`
-	Priority    string   `json:"priority"`
-	CreatorID   int32    `json:"creatorId"`
-	AssigneeID  *int32   `json:"assigneeId"`
-	CreatedTs   int64    `json:"createdTs"`
-	UpdatedTs   int64    `json:"updatedTs"`
-	Type        string   `json:"type"`
-	Tags        []string `json:"tags"`
+	ID               int32    `json:"id"`
+	BeadsID          *string  `json:"beadsId,omitempty"`
+	Title            string   `json:"title"`
+	Description      string   `json:"description"`
+	Status           string   `json:"status"`
+	Priority         string   `json:"priority"`
+	CreatorID        int32    `json:"creatorId"`
+	AssigneeID       *int32   `json:"assigneeId,omitempty"`
+	CreatedTs        int64    `json:"createdTs"`
+	UpdatedTs        int64    `json:"updatedTs"`
+	Type             string   `json:"type"`
+	Tags             []string `json:"tags"`
+	IssueType        string   `json:"issueType"`
+	Labels           []string `json:"labels"`
+	ParentID         *int32   `json:"parentId,omitempty"`
+	Dependencies     []int32  `json:"dependencies"`
+	DiscoveryContext *string  `json:"discoveryContext,omitempty"`
+	ClosedReason     *string  `json:"closedReason,omitempty"`
 }
 
 type CreateTicketRequest struct {
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	Status      string   `json:"status"`
-	Priority    string   `json:"priority"`
-	Type        string   `json:"type"`
-	Tags        []string `json:"tags"`
-	AssigneeID  *int32   `json:"assigneeId"`
+	Title       string           `json:"title"`
+	Description string           `json:"description"`
+	Status      string           `json:"status"`
+	Priority    FlexiblePriority `json:"priority"` // Accepts both string and int
+	Type        string           `json:"type"`     // Will be mapped to issue_type
+	Labels      []string         `json:"labels"`
+	Tags        []string         `json:"tags"`
+	AssigneeID  *int32           `json:"assigneeId"`
+}
+
+// FlexiblePriority can unmarshal from both string ("LOW", "MEDIUM", "HIGH") and int (0-4)
+type FlexiblePriority int
+
+func (fp *FlexiblePriority) UnmarshalJSON(data []byte) error {
+	// Try to unmarshal as int first (P0-P4)
+	var intVal int
+	if err := json.Unmarshal(data, &intVal); err == nil {
+		if intVal >= 0 && intVal <= 4 {
+			*fp = FlexiblePriority(intVal)
+			return nil
+		}
+		return fmt.Errorf("priority must be between 0 and 4, got %d", intVal)
+	}
+
+	// Try to unmarshal as string (backward compatibility)
+	var strVal string
+	if err := json.Unmarshal(data, &strVal); err != nil {
+		return fmt.Errorf("priority must be either int (0-4) or string (LOW/MEDIUM/HIGH)")
+	}
+
+	// Map string to int
+	switch strings.ToUpper(strVal) {
+	case "LOW":
+		*fp = FlexiblePriority(3) // P3
+	case "MEDIUM":
+		*fp = FlexiblePriority(2) // P2
+	case "HIGH":
+		*fp = FlexiblePriority(1) // P1
+	default:
+		return fmt.Errorf("invalid priority string: %s (expected LOW, MEDIUM, or HIGH)", strVal)
+	}
+	return nil
+}
+
+func (fp FlexiblePriority) Int() int {
+	return int(fp)
 }
 
 type UpdateTicketRequest struct {
@@ -67,41 +117,78 @@ func (s *APIV1Service) CreateTicket(c echo.Context) error {
 		slog.Error("CreateTicket bind error", "error", err)
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body").SetInternal(err)
 	}
-	slog.Info("CreateTicket request", "title", request.Title, "status", request.Status, "priority", request.Priority)
+	slog.Info("CreateTicket request", "title", request.Title, "priority", request.Priority, "type", request.Type)
 
-	ticket := &store.Ticket{
+	// Normalize type to lowercase and map legacy types to beads types
+	issueType := strings.ToLower(request.Type)
+	switch issueType {
+	case "story":
+		issueType = "feature" // Map STORY to feature
+	case "bug", "task", "feature", "epic", "chore", "docs", "investigation":
+		// Valid beads types - keep as is
+	default:
+		issueType = "task" // Default to task for unknown types
+	}
+
+	// STRICT BD CLI INTEGRATION: Create issue via bd CLI first
+	beadsResp, err := s.beadsService.CreateIssue(ctx, &service.BeadsIssueRequest{
 		Title:       request.Title,
 		Description: request.Description,
-		Status:      store.TicketStatus(request.Status),
-		Priority:    store.TicketPriority(request.Priority),
-		Type:        request.Type,
+		Type:        issueType, // Use normalized lowercase type
+		Priority:    request.Priority.Int(),
+		Labels:      request.Labels,
+	})
+	if err != nil {
+		slog.Error("bd create failed", "error", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create beads issue").SetInternal(err)
+	}
+
+	slog.Info("bd create successful", "beadsID", beadsResp.BeadsID)
+
+	// Now store in database with beads_id
+	ticket := &store.Ticket{
+		BeadsID:     &beadsResp.BeadsID,
+		Title:       request.Title,
+		Description: request.Description,
+		Status:      store.TicketStatusOpen, // Always start as OPEN
+		Priority:    store.BeadsPriorityToTicket(request.Priority.Int()),
+		Type:        request.Type, // Keep for backward compat
+		IssueType:   request.Type, // Set beads issue type
 		Tags:        request.Tags,
+		Labels:      request.Labels,
 		CreatorID:   userID,
 		AssigneeID:  request.AssigneeID,
 		CreatedTs:   time.Now().Unix(),
 		UpdatedTs:   time.Now().Unix(),
 	}
 
-	if ticket.Type == "" {
+	// Set defaults
+	if ticket.IssueType == "" {
+		ticket.IssueType = "task"
 		ticket.Type = "TASK"
 	}
 	if ticket.Tags == nil {
 		ticket.Tags = []string{}
+	}
+	if ticket.Labels == nil {
+		ticket.Labels = []string{}
+	}
+	if ticket.Dependencies == nil {
+		ticket.Dependencies = []int32{}
 	}
 
 	if err := ticket.Validate(); err != nil {
 		slog.Error("CreateTicket validate error", "error", err)
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	slog.Info("CreateTicket validated")
 
-	ticket, err := s.Store.CreateTicket(ctx, ticket)
+	ticket, err = s.Store.CreateTicket(ctx, ticket)
 	if err != nil {
 		slog.Error("CreateTicket store error", "error", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create ticket").SetInternal(err)
 	}
 
-	slog.Info("CreateTicket success", "id", ticket.ID)
+	slog.Info("CreateTicket success", "id", ticket.ID, "beadsID", *ticket.BeadsID)
 
 	return c.JSON(http.StatusOK, convertTicketFromStore(ticket))
 }
@@ -228,17 +315,24 @@ func (s *APIV1Service) DeleteTicket(c echo.Context) error {
 
 func convertTicketFromStore(ticket *store.Ticket) *Ticket {
 	return &Ticket{
-		ID:          ticket.ID,
-		Title:       ticket.Title,
-		Description: ticket.Description,
-		Status:      string(ticket.Status),
-		Priority:    string(ticket.Priority),
-		CreatorID:   ticket.CreatorID,
-		AssigneeID:  ticket.AssigneeID,
-		CreatedTs:   ticket.CreatedTs,
-		UpdatedTs:   ticket.UpdatedTs,
-		Type:        ticket.Type,
-		Tags:        ticket.Tags,
+		ID:               ticket.ID,
+		BeadsID:          ticket.BeadsID,
+		Title:            ticket.Title,
+		Description:      ticket.Description,
+		Status:           string(ticket.Status),
+		Priority:         string(ticket.Priority),
+		CreatorID:        ticket.CreatorID,
+		AssigneeID:       ticket.AssigneeID,
+		CreatedTs:        ticket.CreatedTs,
+		UpdatedTs:        ticket.UpdatedTs,
+		Type:             ticket.Type,
+		Tags:             ticket.Tags,
+		IssueType:        ticket.IssueType,
+		Labels:           ticket.Labels,
+		ParentID:         ticket.ParentID,
+		Dependencies:     ticket.Dependencies,
+		DiscoveryContext: ticket.DiscoveryContext,
+		ClosedReason:     ticket.ClosedReason,
 	}
 }
 
