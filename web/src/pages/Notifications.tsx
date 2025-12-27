@@ -1,9 +1,8 @@
 import { Table, Button, Tooltip, IconButton } from "@mui/joy";
-import { CheckIcon, BellIcon, CheckCheckIcon } from "lucide-react";
+import { CheckIcon, BellIcon } from "lucide-react";
 import { observer } from "mobx-react-lite";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { toast } from "react-hot-toast";
 import Empty from "@/components/Empty";
 import MobileHeader from "@/components/MobileHeader";
 import useCurrentUser from "@/hooks/useCurrentUser";
@@ -15,7 +14,6 @@ const Notifications = observer(() => {
     const t = useTranslate();
     const { md } = useResponsiveWidth();
     const notifications = userStore.state.notifications;
-    const [isMarkingAll, setIsMarkingAll] = useState(false);
 
     const currentUser = useCurrentUser();
 
@@ -29,29 +27,6 @@ const Notifications = observer(() => {
         await userStore.patchNotification(id, true);
     };
 
-    const handleMarkAllAsRead = async () => {
-        const unreadNotifications = notifications.filter(n => !n.isRead);
-        if (unreadNotifications.length === 0) {
-            return;
-        }
-
-        setIsMarkingAll(true);
-        try {
-            // Mark all unread notifications as read
-            await Promise.all(
-                unreadNotifications.map(n => userStore.patchNotification(n.id, true))
-            );
-            toast.success(`Marked ${unreadNotifications.length} notification(s) as read`);
-        } catch (error) {
-            console.error("Failed to mark all as read:", error);
-            toast.error("Failed to mark all as read");
-        } finally {
-            setIsMarkingAll(false);
-        }
-    };
-
-    const unreadCount = notifications.filter(n => !n.isRead).length;
-
     return (
         <section className="@container w-full max-w-5xl min-h-full flex flex-col justify-start items-center sm:pt-3 md:pt-6 pb-8">
             {!md && <MobileHeader />}
@@ -61,26 +36,7 @@ const Notifications = observer(() => {
                         <p className="py-1 flex flex-row justify-start items-center select-none opacity-80">
                             <BellIcon className="w-6 h-auto mr-1 opacity-80" />
                             <span className="text-lg">Notifications</span>
-                            {unreadCount > 0 && (
-                                <span className="ml-2 px-2 py-0.5 text-xs bg-blue-600 text-white rounded-full">
-                                    {unreadCount}
-                                </span>
-                            )}
                         </p>
-                        {unreadCount > 0 && (
-                            <Tooltip title="Mark all as read">
-                                <Button
-                                    size="sm"
-                                    variant="soft"
-                                    color="primary"
-                                    startDecorator={<CheckCheckIcon className="w-4 h-4" />}
-                                    onClick={handleMarkAllAsRead}
-                                    loading={isMarkingAll}
-                                >
-                                    Mark all read
-                                </Button>
-                            </Tooltip>
-                        )}
                     </div>
 
                     {notifications.length === 0 ? (

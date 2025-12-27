@@ -14,18 +14,8 @@ func (d *DB) CreateTicket(ctx context.Context, create *store.Ticket) (*store.Tic
 	if err != nil {
 		return nil, err
 	}
-	labelsBytes, err := json.Marshal(create.Labels)
-	if err != nil {
-		return nil, err
-	}
-	depsBytes, err := json.Marshal(create.Dependencies)
-	if err != nil {
-		return nil, err
-	}
-
 	stmt := `
 		INSERT INTO tickets (
-			beads_id,
 			title,
 			description,
 			status,
@@ -35,21 +25,14 @@ func (d *DB) CreateTicket(ctx context.Context, create *store.Ticket) (*store.Tic
 			created_ts,
 			updated_ts,
 			type,
-			tags,
-			issue_type,
-			labels,
-			parent_id,
-			dependencies,
-			discovery_context,
-			closed_reason
+			tags
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		RETURNING id
 	`
 	if err := d.db.QueryRowContext(
 		ctx,
 		stmt,
-		create.BeadsID,
 		create.Title,
 		create.Description,
 		create.Status,
@@ -60,12 +43,6 @@ func (d *DB) CreateTicket(ctx context.Context, create *store.Ticket) (*store.Tic
 		create.UpdatedTs,
 		create.Type,
 		string(tagsBytes),
-		create.IssueType,
-		string(labelsBytes),
-		create.ParentID,
-		string(depsBytes),
-		create.DiscoveryContext,
-		create.ClosedReason,
 	).Scan(&create.ID); err != nil {
 		return nil, err
 	}
@@ -95,7 +72,6 @@ func (d *DB) ListTickets(ctx context.Context, find *store.FindTicket) ([]*store.
 	query := fmt.Sprintf(`
 		SELECT
 			id,
-			beads_id,
 			title,
 			description,
 			status,
@@ -105,13 +81,7 @@ func (d *DB) ListTickets(ctx context.Context, find *store.FindTicket) ([]*store.
 			created_ts,
 			updated_ts,
 			type,
-			tags,
-			issue_type,
-			labels,
-			parent_id,
-			dependencies,
-			discovery_context,
-			closed_reason
+			tags
 		FROM tickets
 		WHERE %s
 		ORDER BY created_ts DESC
@@ -126,10 +96,9 @@ func (d *DB) ListTickets(ctx context.Context, find *store.FindTicket) ([]*store.
 	list := make([]*store.Ticket, 0)
 	for rows.Next() {
 		var ticket store.Ticket
-		var tagsStr, labelsStr, depsStr string
+		var tagsStr string
 		if err := rows.Scan(
 			&ticket.ID,
-			&ticket.BeadsID,
 			&ticket.Title,
 			&ticket.Description,
 			&ticket.Status,
@@ -140,23 +109,11 @@ func (d *DB) ListTickets(ctx context.Context, find *store.FindTicket) ([]*store.
 			&ticket.UpdatedTs,
 			&ticket.Type,
 			&tagsStr,
-			&ticket.IssueType,
-			&labelsStr,
-			&ticket.ParentID,
-			&depsStr,
-			&ticket.DiscoveryContext,
-			&ticket.ClosedReason,
 		); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal([]byte(tagsStr), &ticket.Tags); err != nil {
 			ticket.Tags = []string{}
-		}
-		if err := json.Unmarshal([]byte(labelsStr), &ticket.Labels); err != nil {
-			ticket.Labels = []string{}
-		}
-		if err := json.Unmarshal([]byte(depsStr), &ticket.Dependencies); err != nil {
-			ticket.Dependencies = []int32{}
 		}
 		list = append(list, &ticket)
 	}
@@ -218,44 +175,19 @@ func (d *DB) UpdateTicket(ctx context.Context, update *store.UpdateTicket) (*sto
 		set = append(set, "tags = ?")
 		args = append(args, string(tagsBytes))
 	}
-	if update.IssueType != nil {
-		set = append(set, "issue_type = ?")
-		args = append(args, *update.IssueType)
-	}
-	if update.Labels != nil {
-		labelsBytes, err := json.Marshal(update.Labels)
-		if err != nil {
-			return nil, err
-		}
-		set = append(set, "labels = ?")
-		args = append(args, string(labelsBytes))
-	}
-	if update.Dependencies != nil {
-		depsBytes, err := json.Marshal(update.Dependencies)
-		if err != nil {
-			return nil, err
-		}
-		set = append(set, "dependencies = ?")
-		args = append(args, string(depsBytes))
-	}
-	if update.ClosedReason != nil {
-		set = append(set, "closed_reason = ?")
-		args = append(args, *update.ClosedReason)
-	}
 
 	args = append(args, update.ID)
 	stmt := fmt.Sprintf(`
 		UPDATE tickets
 		SET %s
 		WHERE id = ?
-		RETURNING id, beads_id, title, description, status, priority, creator_id, assignee_id, created_ts, updated_ts, type, tags, issue_type, labels, parent_id, dependencies, discovery_context, closed_reason
+		RETURNING id, title, description, status, priority, creator_id, assignee_id, created_ts, updated_ts, type, tags
 	`, strings.Join(set, ", "))
 
 	var ticket store.Ticket
-	var tagsStr, labelsStr, depsStr string
+	var tagsStr string
 	if err := d.db.QueryRowContext(ctx, stmt, args...).Scan(
 		&ticket.ID,
-		&ticket.BeadsID,
 		&ticket.Title,
 		&ticket.Description,
 		&ticket.Status,
@@ -266,23 +198,11 @@ func (d *DB) UpdateTicket(ctx context.Context, update *store.UpdateTicket) (*sto
 		&ticket.UpdatedTs,
 		&ticket.Type,
 		&tagsStr,
-		&ticket.IssueType,
-		&labelsStr,
-		&ticket.ParentID,
-		&depsStr,
-		&ticket.DiscoveryContext,
-		&ticket.ClosedReason,
 	); err != nil {
 		return nil, err
 	}
 	if err := json.Unmarshal([]byte(tagsStr), &ticket.Tags); err != nil {
 		ticket.Tags = []string{}
-	}
-	if err := json.Unmarshal([]byte(labelsStr), &ticket.Labels); err != nil {
-		ticket.Labels = []string{}
-	}
-	if err := json.Unmarshal([]byte(depsStr), &ticket.Dependencies); err != nil {
-		ticket.Dependencies = []int32{}
 	}
 
 	return &ticket, nil

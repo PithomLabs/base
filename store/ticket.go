@@ -22,24 +22,17 @@ const (
 )
 
 type Ticket struct {
-	ID               int32
-	BeadsID          *string // NEW: bd-abc123
-	Title            string
-	Description      string
-	Status           TicketStatus
-	Priority         TicketPriority
-	CreatorID        int32
-	AssigneeID       *int32
-	CreatedTs        int64
-	UpdatedTs        int64
-	Type             string   // Keep for backward compat
-	IssueType        string   // NEW: bug, feature, task, epic, chore, docs, investigation
-	Tags             []string // Keep existing
-	Labels           []string // NEW: bd labels
-	ParentID         *int32   // NEW: For epics
-	Dependencies     []int32  // NEW: Blocker ticket IDs
-	DiscoveryContext *string  // NEW: Link to parent issue
-	ClosedReason     *string  // NEW: Closure notes
+	ID          int32
+	Title       string
+	Description string
+	Status      TicketStatus
+	Priority    TicketPriority
+	CreatorID   int32
+	AssigneeID  *int32
+	CreatedTs   int64
+	UpdatedTs   int64
+	Type        string
+	Tags        []string
 }
 
 type FindTicket struct {
@@ -50,19 +43,15 @@ type FindTicket struct {
 }
 
 type UpdateTicket struct {
-	ID           int32
-	Title        *string
-	Description  *string
-	Status       *TicketStatus
-	Priority     *TicketPriority
-	AssigneeID   *int32
-	UpdatedTs    *int64
-	Type         *string
-	Tags         []string
-	IssueType    *string  // NEW
-	Labels       []string // NEW
-	Dependencies []int32  // NEW
-	ClosedReason *string  // NEW
+	ID          int32
+	Title       *string
+	Description *string
+	Status      *TicketStatus
+	Priority    *TicketPriority
+	AssigneeID  *int32
+	UpdatedTs   *int64
+	Type        *string
+	Tags        []string
 }
 
 type DeleteTicket struct {
@@ -83,48 +72,6 @@ func (t *Ticket) Validate() error {
 		return errors.New("description must be a valid memo link starting with /m/")
 	}
 	return nil
-}
-
-// BeadsPriorityToTicket maps bd priority (0-4) to ticket priority
-func BeadsPriorityToTicket(p int) TicketPriority {
-	switch p {
-	case 0, 1:
-		return TicketPriorityHigh // P0, P1 → HIGH
-	case 2:
-		return TicketPriorityMedium // P2 → MEDIUM
-	case 3, 4:
-		return TicketPriorityLow // P3, P4 → LOW
-	default:
-		return TicketPriorityMedium
-	}
-}
-
-// TicketPriorityToBeads maps ticket priority back to bd priority
-func TicketPriorityToBeads(p TicketPriority) int {
-	switch p {
-	case TicketPriorityHigh:
-		return 1 // Default to P1
-	case TicketPriorityMedium:
-		return 2 // P2
-	case TicketPriorityLow:
-		return 3 // P3
-	default:
-		return 2
-	}
-}
-
-// ValidateBeadsType checks if issue type is valid for bd
-func ValidateBeadsType(t string) bool {
-	validTypes := map[string]bool{
-		"bug":           true,
-		"feature":       true,
-		"task":          true,
-		"epic":          true,
-		"chore":         true,
-		"docs":          true,
-		"investigation": true,
-	}
-	return validTypes[t]
 }
 
 type TicketStore interface {

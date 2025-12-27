@@ -1,0 +1,5 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary":  "Implementation plan for enabling foreign key constraints in SQLite (base-y88). Includes migration to add foreign keys to tickets table, runtime enforcement, pre-migration data validation, and comprehensive testing. Verification includes unit tests, orphan record detection, constraint violation tests, and manual integration testing.",
+  "updatedAt":  "2025-12-27T15:02:28.770782851Z"
+}

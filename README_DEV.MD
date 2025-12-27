@@ -8,5 +8,6 @@ Prompt to Antigravity
 
 - Ensure that you strictly follow AGENTS.MD
 - Follow the issue creation protocol and template in AGENTS.MD when saving YOUR entire implementation plan to beads description
+- Add your summary of the implementation or testing as beads notes and include your LLM name 
 - Do not close any beads issue until I tell you so
-- When a beads issue is reopened, add notes as to what went wrong and how do you plan to test it (with human intervention if needed) and save it to the beads issue notes field
+- When a beads issue is reopened or being tested, add notes to the beads issue and include your LLM name

@@ -1,87 +1,37 @@
 package v1
 
 import (
-	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/usememos/memos/server/service"
 	"github.com/usememos/memos/store"
 )
 
 type Ticket struct {
-	ID               int32    `json:"id"`
-	BeadsID          *string  `json:"beadsId,omitempty"`
-	Title            string   `json:"title"`
-	Description      string   `json:"description"`
-	Status           string   `json:"status"`
-	Priority         string   `json:"priority"`
-	CreatorID        int32    `json:"creatorId"`
-	AssigneeID       *int32   `json:"assigneeId,omitempty"`
-	CreatedTs        int64    `json:"createdTs"`
-	UpdatedTs        int64    `json:"updatedTs"`
-	Type             string   `json:"type"`
-	Tags             []string `json:"tags"`
-	IssueType        string   `json:"issueType"`
-	Labels           []string `json:"labels"`
-	ParentID         *int32   `json:"parentId,omitempty"`
-	Dependencies     []int32  `json:"dependencies"`
-	DiscoveryContext *string  `json:"discoveryContext,omitempty"`
-	ClosedReason     *string  `json:"closedReason,omitempty"`
+	ID          int32    `json:"id"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Status      string   `json:"status"`
+	Priority    string   `json:"priority"`
+	CreatorID   int32    `json:"creatorId"`
+	AssigneeID  *int32   `json:"assigneeId"`
+	CreatedTs   int64    `json:"createdTs"`
+	UpdatedTs   int64    `json:"updatedTs"`
+	Type        string   `json:"type"`
+	Tags        []string `json:"tags"`
 }
 
 type CreateTicketRequest struct {
-	Title       string           `json:"title"`
-	Description string           `json:"description"`
-	Status      string           `json:"status"`
-	Priority    FlexiblePriority `json:"priority"` // Accepts both string and int
-	Type        string           `json:"type"`     // Will be mapped to issue_type
-	Labels      []string         `json:"labels"`
-	Tags        []string         `json:"tags"`
-	AssigneeID  *int32           `json:"assigneeId"`
-}
-
-// FlexiblePriority can unmarshal from both string ("LOW", "MEDIUM", "HIGH") and int (0-4)
-type FlexiblePriority int
-
-func (fp *FlexiblePriority) UnmarshalJSON(data []byte) error {
-	// Try to unmarshal as int first (P0-P4)
-	var intVal int
-	if err := json.Unmarshal(data, &intVal); err == nil {
-		if intVal >= 0 && intVal <= 4 {
-			*fp = FlexiblePriority(intVal)
-			return nil
-		}
-		return fmt.Errorf("priority must be between 0 and 4, got %d", intVal)
-	}
-
-	// Try to unmarshal as string (backward compatibility)
-	var strVal string
-	if err := json.Unmarshal(data, &strVal); err != nil {
-		return fmt.Errorf("priority must be either int (0-4) or string (LOW/MEDIUM/HIGH)")
-	}
-
-	// Map string to int
-	switch strings.ToUpper(strVal) {
-	case "LOW":
-		*fp = FlexiblePriority(3) // P3
-	case "MEDIUM":
-		*fp = FlexiblePriority(2) // P2
-	case "HIGH":
-		*fp = FlexiblePriority(1) // P1
-	default:
-		return fmt.Errorf("invalid priority string: %s (expected LOW, MEDIUM, or HIGH)", strVal)
-	}
-	return nil
-}
-
-func (fp FlexiblePriority) Int() int {
-	return int(fp)
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Status      string   `json:"status"`
+	Priority    string   `json:"priority"`
+	Type        string   `json:"type"`
+	Tags        []string `json:"tags"`
+	AssigneeID  *int32   `json:"assigneeId"`
 }
 
 type UpdateTicketRequest struct {
@@ -117,94 +67,41 @@ func (s *APIV1Service) CreateTicket(c echo.Context) error {
 		slog.Error("CreateTicket bind error", "error", err)
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body").SetInternal(err)
 	}
-	slog.Info("CreateTicket request", "title", request.Title, "priority", request.Priority, "type", request.Type)
+	slog.Info("CreateTicket request", "title", request.Title, "status", request.Status, "priority", request.Priority)
 
-	// Normalize type to lowercase and map legacy types to beads types
-	issueType := strings.ToLower(request.Type)
-	switch issueType {
-	case "story":
-		issueType = "feature" // Map STORY to feature
-	case "bug", "task", "feature", "epic", "chore", "docs", "investigation":
-		// Valid beads types - keep as is
-	default:
-		issueType = "task" // Default to task for unknown types
-	}
-
-	// STRICT BD CLI INTEGRATION: Create issue via bd CLI first
-	// Fetch memo content if description is a memo link
-	memoContent := request.Description
-	if strings.HasPrefix(request.Description, "/m/") {
-		memoName := convertDescriptionToMemoName(request.Description)
-		// Get memo by name
-		memoList, err := s.Store.ListMemos(ctx, &store.FindMemo{
-			UID: &memoName,
-		})
-		if err == nil && len(memoList) > 0 {
-			memo := memoList[0]
-			// Format content per AGENTS.MD protocol
-			memoContent = formatMemoContentForBeads(memo.Content, issueType)
-			slog.Info("Fetched memo content for beads", "memoUID", memoName, "contentLength", len(memoContent))
-		}
-	}
-
-	beadsResp, err := s.beadsService.CreateIssue(ctx, &service.BeadsIssueRequest{
-		Title:       request.Title,
-		Description: memoContent, // Pass actual content, not link
-		Type:        issueType,   // Use normalized lowercase type
-		Priority:    request.Priority.Int(),
-		Labels:      request.Labels,
-	})
-	if err != nil {
-		slog.Error("bd create failed", "error", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create beads issue").SetInternal(err)
-	}
-
-	slog.Info("bd create successful", "beadsID", beadsResp.BeadsID)
-
-	// Now store in database with beads_id
 	ticket := &store.Ticket{
-		BeadsID:     &beadsResp.BeadsID,
 		Title:       request.Title,
 		Description: request.Description,
-		Status:      store.TicketStatusOpen, // Always start as OPEN
-		Priority:    store.BeadsPriorityToTicket(request.Priority.Int()),
-		Type:        request.Type, // Keep for backward compat
-		IssueType:   request.Type, // Set beads issue type
+		Status:      store.TicketStatus(request.Status),
+		Priority:    store.TicketPriority(request.Priority),
+		Type:        request.Type,
 		Tags:        request.Tags,
-		Labels:      request.Labels,
 		CreatorID:   userID,
 		AssigneeID:  request.AssigneeID,
 		CreatedTs:   time.Now().Unix(),
 		UpdatedTs:   time.Now().Unix(),
 	}
 
-	// Set defaults
-	if ticket.IssueType == "" {
-		ticket.IssueType = "task"
+	if ticket.Type == "" {
 		ticket.Type = "TASK"
 	}
 	if ticket.Tags == nil {
 		ticket.Tags = []string{}
-	}
-	if ticket.Labels == nil {
-		ticket.Labels = []string{}
-	}
-	if ticket.Dependencies == nil {
-		ticket.Dependencies = []int32{}
 	}
 
 	if err := ticket.Validate(); err != nil {
 		slog.Error("CreateTicket validate error", "error", err)
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
+	slog.Info("CreateTicket validated")
 
-	ticket, err = s.Store.CreateTicket(ctx, ticket)
+	ticket, err := s.Store.CreateTicket(ctx, ticket)
 	if err != nil {
 		slog.Error("CreateTicket store error", "error", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to create ticket").SetInternal(err)
 	}
 
-	slog.Info("CreateTicket success", "id", ticket.ID, "beadsID", *ticket.BeadsID)
+	slog.Info("CreateTicket success", "id", ticket.ID)
 
 	return c.JSON(http.StatusOK, convertTicketFromStore(ticket))
 }
@@ -321,6 +218,7 @@ func (s *APIV1Service) DeleteTicket(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid ticket ID")
 	}
+
 	if err := s.Store.DeleteTicket(ctx, &store.DeleteTicket{ID: int32(id)}); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete ticket").SetInternal(err)
 	}
@@ -328,111 +226,19 @@ func (s *APIV1Service) DeleteTicket(c echo.Context) error {
 	return c.JSON(http.StatusOK, true)
 }
 
-// convertDescriptionToMemoName converts "/m/xyz" to "memos/xyz"
-func convertDescriptionToMemoName(description string) string {
-	if !strings.HasPrefix(description, "/m/") {
-		return ""
-	}
-	uid := strings.TrimPrefix(description, "/m/")
-	return fmt.Sprintf("memos/%s", uid)
-}
-
-// formatMemoContentForBeads formats memo content per AGENTS.MD protocol
-func formatMemoContentForBeads(content string, issueType string) string {
-	// Add type-specific formatting
-	switch issueType {
-	case "bug":
-		return formatBugDescription(content)
-	case "feature":
-		return formatFeatureDescription(content)
-	case "task":
-		return formatTaskDescription(content)
-	default:
-		return content
-	}
-}
-
-// formatBugDescription adds bug-specific AGENTS.MD formatting
-func formatBugDescription(content string) string {
-	// Check if already formatted
-	if strings.Contains(content, "Steps to reproduce:") {
-		return content
-	}
-
-	// Add template if not formatted
-	return fmt.Sprintf(`## Bug Report
-
-### Description
-%s
-
-### Details
-**Steps to reproduce:**
-1. [Add steps here]
-
-**Expected behavior:** [What should happen]
-**Actual behavior:** [What happens instead]
-**Error message:** [If any]
-**Code location:** [file:line]
-`, content)
-}
-
-// formatFeatureDescription adds feature-specific AGENTS.MD formatting
-func formatFeatureDescription(content string) string {
-	if strings.Contains(content, "Acceptance Criteria:") {
-		return content
-	}
-
-	return fmt.Sprintf(`## Feature Request
-
-### Description
-%s
-
-### Acceptance Criteria
-- [ ] [Criterion 1]
-- [ ] [Criterion 2]
-
-**Dependencies:** [What's needed]
-**Impact:** [Who benefits]
-`, content)
-}
-
-// formatTaskDescription adds task-specific AGENTS.MD formatting
-func formatTaskDescription(content string) string {
-	if strings.Contains(content, "Current State:") {
-		return content
-	}
-
-	return fmt.Sprintf(`## Task
-
-### Description
-%s
-
-**Current State:** [What exists]
-**Goal:** [What we want]
-**Files affected:** [List files]
-`, content)
-}
-
 func convertTicketFromStore(ticket *store.Ticket) *Ticket {
 	return &Ticket{
-		ID:               ticket.ID,
-		BeadsID:          ticket.BeadsID,
-		Title:            ticket.Title,
-		Description:      ticket.Description,
-		Status:           string(ticket.Status),
-		Priority:         string(ticket.Priority),
-		CreatorID:        ticket.CreatorID,
-		AssigneeID:       ticket.AssigneeID,
-		CreatedTs:        ticket.CreatedTs,
-		UpdatedTs:        ticket.UpdatedTs,
-		Type:             ticket.Type,
-		Tags:             ticket.Tags,
-		IssueType:        ticket.IssueType,
-		Labels:           ticket.Labels,
-		ParentID:         ticket.ParentID,
-		Dependencies:     ticket.Dependencies,
-		DiscoveryContext: ticket.DiscoveryContext,
-		ClosedReason:     ticket.ClosedReason,
+		ID:          ticket.ID,
+		Title:       ticket.Title,
+		Description: ticket.Description,
+		Status:      string(ticket.Status),
+		Priority:    string(ticket.Priority),
+		CreatorID:   ticket.CreatorID,
+		AssigneeID:  ticket.AssigneeID,
+		CreatedTs:   ticket.CreatedTs,
+		UpdatedTs:   ticket.UpdatedTs,
+		Type:        ticket.Type,
+		Tags:        ticket.Tags,
 	}
 }
 

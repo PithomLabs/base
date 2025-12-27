@@ -66,9 +66,6 @@ const Tickets = observer(() => {
     const [type, setType] = useState("TASK");
     const [assigneeId, setAssigneeId] = useState<number | null>(null);
     const [description, setDescription] = useState("");
-    const [labels, setLabels] = useState<string[]>([]);
-    const [tags, setTags] = useState<string[]>([]);
-    const [parentId, setParentId] = useState<number | null>(null);
 
     // Comments state
     const [relatedMemos, setRelatedMemos] = useState<Memo[]>([]);
@@ -179,8 +176,6 @@ const Tickets = observer(() => {
                 status,
                 priority,
                 type,
-                labels,      // NEW: Beads labels
-                tags,        // NEW: Legacy tags
                 assigneeId: assigneeId || undefined
             };
 
@@ -264,9 +259,6 @@ const Tickets = observer(() => {
         setType("TASK");
         setAssigneeId(null);
         setDescription("");
-        setLabels([]);
-        setTags([]);
-        setParentId(null);
         setRelatedMemos([]);
         setIsCreatingDescription(false);
     };
@@ -279,9 +271,6 @@ const Tickets = observer(() => {
         setType(ticket.type || "TASK");
         setAssigneeId(ticket.assigneeId || null);
         setDescription(ticket.description);
-        setLabels(ticket.labels || []);
-        setTags(ticket.tags || []);
-        setParentId(ticket.parentId || null);
         setShowCreateDialog(true);
         loadRelatedMemos(ticket);
     };
@@ -538,28 +527,7 @@ const Tickets = observer(() => {
                                 )}
                             </div>
 
-                            {/* Labels Field (NEW - Beads labels) */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Labels</label>
-                                <Input
-                                    value={labels.join(", ")}
-                                    onChange={(e) => setLabels(e.target.value.split(",").map(l => l.trim()).filter(Boolean))}
-                                    placeholder="backend, frontend, security (comma-separated)"
-                                />
-                                <div className="text-xs text-gray-500 mt-1">Press comma to add multiple labels</div>
-                            </div>
-
-                            {/* Tags Field (Legacy - optional) */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Tags (Legacy)</label>
-                                <Input
-                                    value={tags.join(", ")}
-                                    onChange={(e) => setTags(e.target.value.split(",").map(t => t.trim()).filter(Boolean))}
-                                    placeholder="tag1, tag2, tag3 (comma-separated)"
-                                />
-                            </div>
-
-                            <div className="flex justify-end gap-2 pt-4 border-t pb-4 mb-4">
+                            <div className="flex justify-end gap-2 pt-4 border-b pb-4 mb-4">
                                 <Button variant="outlined" color="neutral" onClick={() => setShowCreateDialog(false)}>
                                     Cancel
                                 </Button>

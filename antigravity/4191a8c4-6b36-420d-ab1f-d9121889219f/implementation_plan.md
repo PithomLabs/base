@@ -1,0 +1,384 @@
+# Implementation Plan: Enable Foreign Key Constraints (base-y88)
+
+## Problem Summary
+
+Foreign key constraints are disabled globally in SQLite (`foreign_keys(0)`), allowing orphaned records and referential integrity violations. This creates security and data integrity risks.
+
+**Current State:**
+- [`store/db/sqlite/sqlite.go:43`](file:///home/chaschel/Documents/ibm/go/base/store/db/sqlite/sqlite.go#L43) - `foreign_keys(0)` explicitly disables FK enforcement
+- Ticket table has NO foreign key constraints defined despite `creator_id` and `assignee_id` referencing user table
+
+**Risk:** Tickets can reference non-existent users, deleted users leave orphaned tickets, data corruption.
+
+---
+
+## Proposed Changes
+
+### 1. Enable Foreign Key Enforcement (SQLite Connection)
+
+#### MODIFY [`store/db/sqlite/sqlite.go`](file:///home/chaschel/Documents/ibm/go/base/store/db/sqlite/sqlite.go#L43)
+
+**Change:**
+```diff
+-sqliteDB, err := sql.Open("sqlite", profile.DSN+"?_pragma=foreign_keys(0)&_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)")
++sqliteDB, err := sql.Open("sqlite", profile.DSN+"?_pragma=foreign_keys(1)&_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)")
+```
+
+Update comment (L31-32):
+```diff
+-- No foreign key constraints: it's currently disabled by default, but it's a
+-good practice to be explicit and prevent future surprises on SQLite upgrades.
++Enable foreign key constraints: essential for data integrity and preventing orphaned records.
+```
+
+---
+
+### 2. Add Foreign Key Constraints to Tickets Table
+
+#### NEW MIGRATION: [`store/migration/sqlite/0.25/03__tickets_foreign_keys.sql`](file:///home/chaschel/Documents/ibm/go/base/store/migration/sqlite/0.25/03__tickets_foreign_keys.sql)
+
+**Create new migration file:**
+
+```sql
+-- Add foreign key constraints to tickets table
+-- SQLite requires recreating the table to add foreign keys
+
+PRAGMA foreign_keys = OFF;
+
+-- Create new table with foreign keys
+CREATE TABLE tickets_new (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'OPEN',
+  priority TEXT NOT NULL DEFAULT 'MEDIUM',
+  type TEXT NOT NULL DEFAULT 'TASK',
+  tags TEXT NOT NULL DEFAULT '[]',
+  creator_id INTEGER NOT NULL,
+  assignee_id INTEGER,
+  created_ts BIGINT NOT NULL,
+  updated_ts BIGINT NOT NULL,
+  FOREIGN KEY (creator_id) REFERENCES user(id) ON DELETE CASCADE,
+  FOREIGN KEY (assignee_id) REFERENCES user(id) ON DELETE SET NULL
+);
+
+-- Copy existing data
+INSERT INTO tickets_new (id, title, description, status, priority, type, tags, creator_id, assignee_id, created_ts, updated_ts)
+SELECT id, title, description, status, priority, 
+       COALESCE(type, 'TASK'), 
+       COALESCE(tags, '[]'), 
+       creator_id, assignee_id, created_ts, updated_ts
+FROM tickets;
+
+-- Drop old table
+DROP TABLE tickets;
+
+-- Rename new table
+ALTER TABLE tickets_new RENAME TO tickets;
+
+-- Recreate indexes
+CREATE INDEX idx_tickets_creator_id ON tickets (creator_id);
+CREATE INDEX idx_tickets_status ON tickets (status);
+CREATE INDEX idx_tickets_assignee_id ON tickets (assignee_id);
+
+PRAGMA foreign_keys = ON;
+```
+
+**Justification:**
+- `ON DELETE CASCADE` for creator - If user deleted, their tickets are deleted
+- `ON DELETE SET NULL` for assignee - If assignee deleted, tickets become unassigned
+- Added missing `type` and `tags` columns (they exist in code but not in original migration)
+
+---
+
+### 3. Pre-Migration Data Validation
+
+#### NEW FILE: [`store/migration_helper.go`](file:///home/chaschel/Documents/ibm/go/base/store/migration_helper.go)
+
+**Add helper to check for orphaned records BEFORE enabling FK:**
+
+```go
+package store
+
+import (
+\t"context"
+\t"database/sql"
+\t"fmt"
+)
+
+// ValidateTicketReferences checks for orphaned ticket references
+func ValidateTicketReferences(ctx context.Context, db *sql.DB) error {
+\t// Check creator_id orphans
+\tvar orphanedCreators int
+\terr := db.QueryRowContext(ctx, `
+\t\tSELECT COUNT(*) FROM ticket 
+\t\tWHERE creator_id NOT IN (SELECT id FROM user)
+\t`).Scan(&orphanedCreators)
+\tif err != nil {
+\t\treturn fmt.Errorf("failed to check creator orphans: %w", err)
+\t}
+\tif orphanedCreators > 0 {
+\t\treturn fmt.Errorf("found %d tickets with invalid creator_id", orphanedCreators)
+\t}
+
+\t// Check assignee_id orphans
+\tvar orphanedAssignees int
+\terr = db.QueryRowContext(ctx, `
+\t\tSELECT COUNT(*) FROM ticket 
+\t\tWHERE assignee_id IS NOT NULL 
+\t\tAND assignee_id NOT IN (SELECT id FROM user)
+\t`).Scan(&orphanedAssignees)
+\tif err != nil {
+\t\treturn fmt.Errorf("failed to check assignee orphans: %w", err)
+\t}
+\tif orphanedAssignees > 0 {
+\t\treturn fmt.Errorf("found %d tickets with invalid assignee_id", orphanedAssignees)
+\t}
+
+\treturn nil
+}
+```
+
+---
+
+### 4. Update Migration Runner
+
+#### MODIFY [`store/migrator.go`](file:///home/chaschel/Documents/ibm/go/base/store/migrator.go)
+
+Before running migrations, validate existing data:
+
+```go
+// In migration execution, before applying new migration
+if migrationVersion == "0.25" {
+    if err := ValidateTicketReferences(ctx, driver.GetDB()); err != nil {
+        return fmt.Errorf("data validation failed: %w", err)
+    }
+}
+```
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+#### 1. Unit Test: Foreign Key Enforcement
+
+**Location**: [`store/test/ticket_test.go`](file:///home/chaschel/Documents/ibm/go/base/store/test/ticket_test.go)
+
+**New test to add:**
+
+```go
+func TestTicketForeignKeyConstraints(t *testing.T) {
+\tctx := context.Background()
+\tts := NewTestingStore(ctx, t)
+\tuser, err := createTestingHostUser(ctx, ts)
+\trequire.NoError(t, err)
+
+\t// Test: Cannot create ticket with invalid creator_id
+\tinvalidTicket := &store.Ticket{
+\t\tTitle:       "Invalid Ticket",
+\t\tDescription: "/m/test",
+\t\tStatus:      store.TicketStatusOpen,
+\t\tPriority:    store.TicketPriorityMedium,
+\t\tCreatorID:   99999, // Non-existent user
+\t\tCreatedTs:   time.Now().Unix(),
+\t\tUpdatedTs:   time.Now().Unix(),
+\t}
+\t_, err = ts.CreateTicket(ctx, invalidTicket)
+\trequire.Error(t, err, "Should fail with invalid creator_id")
+\trequire.Contains(t, err.Error(), "FOREIGN KEY constraint failed")
+
+\t// Test: Cannot assign to invalid user
+\tinvalidAssignee := int32(99999)
+\tvalidTicket := &store.Ticket{
+\t\tTitle:       "Valid Ticket",
+\t\tDescription: "/m/test",
+\t\tStatus:      store.TicketStatusOpen,
+\t\tPriority:    store.TicketPriorityMedium,
+\t\tCreatorID:   user.ID,
+\t\tAssigneeID:  &invalidAssignee,
+\t\tCreatedTs:   time.Now().Unix(),
+\t\tUpdatedTs:   time.Now().Unix(),
+\t}
+\t_, err = ts.CreateTicket(ctx, validTicket)
+\trequire.Error(t, err, "Should fail with invalid assignee_id")
+
+\t// Test: CASCADE DELETE - tickets deleted when user deleted
+\tticket, err := ts.CreateTicket(ctx, &store.Ticket{
+\t\tTitle:       "Test CASCADE",
+\t\tDescription: "/m/test",
+\t\tStatus:      store.TicketStatusOpen,
+\t\tPriority:    store.TicketPriorityMedium,
+\t\tCreatorID:   user.ID,
+\t\tCreatedTs:   time.Now().Unix(),
+\t\tUpdatedTs:   time.Now().Unix(),
+\t})
+\trequire.NoError(t, err)
+
+\terr = ts.DeleteUser(ctx, &store.DeleteUser{ID: user.ID})
+\trequire.NoError(t, err)
+
+\t// Verify ticket was cascaded
+\t_, err = ts.GetTicket(ctx, &store.FindTicket{ID: &ticket.ID})
+\trequire.Error(t, err, "Ticket should be deleted with user")
+
+\tts.Close()
+}
+```
+
+**How to run:**
+```bash
+go test ./store/test -run TestTicketForeignKeyConstraints -v
+```
+
+---
+
+#### 2. Migration Test: Data Validation
+
+**Location**: [`store/test/migrator_test.go`](file:///home/chaschel/Documents/ibm/go/base/store/test/migrator_test.go)
+
+**Add test:**
+
+```go
+func TestMigrationDataValidation(t *testing.T) {
+\t// Test that migration fails if orphaned records exist
+\t// (This is a regression test - should be tested manually first)
+}
+```
+
+**How to run:**
+```bash
+go test ./store/test -run TestMigration -v
+```
+
+---
+
+#### 3. Full Test Suite Verification
+
+**Ensure all existing tests pass with FK enabled:**
+
+```bash
+# Run all store tests
+go test ./store/... -v
+
+# Check for any FK constraint failures
+go test ./store/test -run TestTicketStore -v
+```
+
+---
+
+### Manual Verification
+
+#### 4. Check Existing Database for Orphans
+
+**Before applying fix:**
+
+```bash
+cd /home/chaschel/Documents/ibm/go/base
+sqlite3 bin/memos/data/memos_dev.db <<EOF
+-- Check for orphaned creator_id
+SELECT COUNT(*) as orphaned_creators 
+FROM ticket 
+WHERE creator_id NOT IN (SELECT id FROM user);
+
+-- Check for orphaned assignee_id
+SELECT COUNT(*) as orphaned_assignees
+FROM ticket 
+WHERE assignee_id IS NOT NULL 
+AND assignee_id NOT IN (SELECT id FROM user);
+
+-- Show orphaned tickets if any
+SELECT id, title, creator_id, assignee_id 
+FROM ticket 
+WHERE creator_id NOT IN (SELECT id FROM user)
+   OR (assignee_id IS NOT NULL AND assignee_id NOT IN (SELECT id FROM user));
+EOF
+```
+
+**Expected result:** 0 orphaned records (already verified this returns 0)
+
+---
+
+#### 5. Integration Test: Rebuild and Test Application
+
+**Steps:**
+
+1. Rebuild application:
+```bash
+cd bin/memos
+go build -o memos ../../cmd/memos
+```
+
+2. Start application:
+```bash
+./memos --mode dev
+```
+
+3. Test ticket creation via UI:
+   - Login to application
+   - Navigate to /tickets
+   - Create new ticket
+   - Verify no errors
+
+4. Test foreign key enforcement via database:
+```bash
+sqlite3 data/memos_dev.db "INSERT INTO ticket (title, description, creator_id, created_ts, updated_ts) VALUES ('Test', '/m/test', 99999, 0, 0);"
+# Expected: Error: FOREIGN KEY constraint failed
+```
+
+5. Verify schema:
+```bash
+sqlite3 data/memos_dev.db ".schema ticket"
+# Should show FOREIGN KEY constraints
+```
+
+---
+
+## Rollback Plan
+
+If issues arise:
+
+1. **Revert code change:**
+```bash
+git checkout HEAD -- store/db/sqlite/sqlite.go
+```
+
+2. **Database rollback:**
+```sql
+PRAGMA foreign_keys = OFF;
+-- (Keep existing data, just disable enforcement)
+```
+
+3. **Create blocker issue** with details
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Breaking Change Risk:** Enabling foreign keys may break existing workflows if application code attempts invalid references.
+
+> [!WARNING]  
+> **Data Migration:** Tickets table will be recreated. Ensure database backup exists before proceeding.
+
+**Questions for User:**
+
+1. Should I proceed with CASCADE DELETE for creator_id? (Alternative: Block user deletion if tickets exist)
+2. Is SET NULL acceptable for assignee_id? (Alternative: CASCADE DELETE assigned tickets too)
+3. Do you want me to add foreign keys to OTHER tables as well? (e.g., memo, resource, inbox)
+
+---
+
+## Next Steps After Approval
+
+1. Create migration file
+2. Update sqlite.go connection string
+3. Add validation helper
+4. Write new test
+5. Run full test suite
+6. Manual verification
+7. Commit changes
+8. Close base-y88
+
+**Estimated Time:** 2-3 hours including testing

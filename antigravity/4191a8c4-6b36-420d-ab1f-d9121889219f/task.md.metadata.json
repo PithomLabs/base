@@ -1,0 +1,5 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_TASK",
+  "summary":  "Task checklist for fixing three P0 critical security vulnerabilities: foreign key constraints disabled, IDOR in ticket operations, and SQL injection risks. Organized into phases for issue creation, individual fixes, and verification following AGENTS.MD beads workflow guidelines.",
+  "updatedAt":  "2025-12-27T14:58:02.548141252Z"
+}
