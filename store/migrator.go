@@ -39,6 +39,14 @@ func (s *Store) Migrate(ctx context.Context) error {
 		return errors.Wrap(err, "failed to pre-migrate")
 	}
 
+	// Validate data integrity before migration
+	// This specifically checks for orphaned ticket references before enabling foreign keys
+	if s.profile.Driver == "sqlite" {
+		if err := ValidateTicketReferences(ctx, s.driver.GetDB()); err != nil {
+			return errors.Wrap(err, "data validation failed")
+		}
+	}
+
 	if s.profile.Mode == "prod" || s.profile.Mode == "dev" {
 		migrationHistoryList, err := s.driver.FindMigrationHistoryList(ctx, &FindMigrationHistory{})
 		if err != nil {
@@ -113,12 +121,6 @@ func (s *Store) Migrate(ctx context.Context) error {
 			return errors.Wrap(err, "failed to seed")
 		}
 	}
-
-	// Ensure beads columns exist in tickets table (idempotent)
-	if err := s.EnsureTicketBeadsColumns(ctx); err != nil {
-		slog.Warn("Failed to ensure beads columns, may already exist", slog.String("error", err.Error()))
-	}
-
 	return nil
 }
 

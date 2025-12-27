@@ -87,7 +87,7 @@ func ValidateTicketReferences(ctx context.Context, db *sql.DB) error {
 	// Check creator_id orphans
 	var orphanedCreators int
 	err := db.QueryRowContext(ctx, `
-		SELECT COUNT(*) FROM ticket 
+		SELECT COUNT(*) FROM tickets
 		WHERE creator_id NOT IN (SELECT id FROM user)
 	`).Scan(&orphanedCreators)
 	if err != nil {
@@ -100,7 +100,7 @@ func ValidateTicketReferences(ctx context.Context, db *sql.DB) error {
 	// Check assignee_id orphans
 	var orphanedAssignees int
 	err = db.QueryRowContext(ctx, `
-		SELECT COUNT(*) FROM ticket 
+		SELECT COUNT(*) FROM tickets
 		WHERE assignee_id IS NOT NULL 
 		AND assignee_id NOT IN (SELECT id FROM user)
 	`).Scan(&orphanedAssignees)
