@@ -80,3 +80,36 @@ func (s *Store) EnsureTicketBeadsColumns(ctx context.Context) error {
 
 	return nil
 }
+
+// ValidateTicketReferences checks for orphaned ticket references before enabling foreign keys.
+// This is called during migration to ensure data integrity.
+func ValidateTicketReferences(ctx context.Context, db *sql.DB) error {
+	// Check creator_id orphans
+	var orphanedCreators int
+	err := db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM ticket 
+		WHERE creator_id NOT IN (SELECT id FROM user)
+	`).Scan(&orphanedCreators)
+	if err != nil {
+		return fmt.Errorf("failed to check creator orphans: %w", err)
+	}
+	if orphanedCreators > 0 {
+		return fmt.Errorf("found %d tickets with invalid creator_id - fix data before enabling foreign keys", orphanedCreators)
+	}
+
+	// Check assignee_id orphans
+	var orphanedAssignees int
+	err = db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM ticket 
+		WHERE assignee_id IS NOT NULL 
+		AND assignee_id NOT IN (SELECT id FROM user)
+	`).Scan(&orphanedAssignees)
+	if err != nil {
+		return fmt.Errorf("failed to check assignee orphans: %w", err)
+	}
+	if orphanedAssignees > 0 {
+		return fmt.Errorf("found %d tickets with invalid assignee_id - fix data before enabling foreign keys", orphanedAssignees)
+	}
+
+	return nil
+}
