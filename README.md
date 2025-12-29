@@ -26,6 +26,8 @@ An open-source, self-hosted note-taking solution designed for seamless deploymen
 - **Customizable** 🧩: Personalize your experience by customizing the server name, icon, description, theme, and execution scripts.
 - **Open Source** 🦦: Fully open source, with all code available on GitHub for transparency and collaboration.
 - **Free to Use** 💸: Enjoy all features at no cost, no hidden fees, no subscriptions.
+- **Basic Ticket Management** - with notifications, Kanban board, all configurable
+- **Beads integration** - building durable context for your engineered vibe-coded app
 
 ## Deploy with Docker in seconds
 
@@ -33,27 +35,15 @@ An open-source, self-hosted note-taking solution designed for seamless deploymen
 docker run -d --name memos -p 5230:5230 -v ~/.memos/:/var/opt/memos neosmemo/memos:stable
 ```
 
-> [!NOTE]
-> This command is only applicable for Unix/Linux systems. For Windows, please refer to the detailed [documentation](https://www.usememos.com/docs/install/container-install#docker-on-windows).
->
-> The `~/.memos/` directory will be used as the data directory on your local machine, while `/var/opt/memos` is the directory of the volume in Docker and should not be modified.
+## What If?
 
-Learn more about [other installation methods](https://www.usememos.com/docs/install).
+- What if you want to extend Memos as base for your software engineering (not just vibe coding but incorporates robust software engineering practices)?
+- What if you want to deploy to production-grade PaaS such as fly.io?
+- What if the possibilities are endless (build your own app on top of this base)?
 
-> [!WARNING]
-> Memos is still under active development, so you may encounter bugs or breaking changes as we improve.
 
-## Contribution
+ ## Read more
 
-Contributions are what make the open-source community such an amazing place to learn, inspire, and create. We greatly appreciate any contributions you make. Thank you for being a part of our community! 🥰
+ - https://medium.com/@pithomlabs/building-on-quality-a-case-study-on-prompt-engineering-2029a83030bb
+ - https://medium.com/@pithomlabs/when-your-ai-agent-needs-memory-building-durable-context-with-beads-743bb23cf7b0
 
-Guide to [contribution](https://www.usememos.com/docs/contribution/development).
-
-## Star history
-
-[![Star History Chart](https://api.star-history.com/svg?repos=usememos/memos&type=Date)](https://star-history.com/#usememos/memos&Date)
-
-## Other Projects
-
-- [**Slash**](https://github.com/yourselfhosted/slash): An open source, self-hosted bookmarks and link sharing platform. Save and share your links very easily.
-- [**Gomark**](https://github.com/usememos/gomark): A markdown parser written in Go for Memos. And its [WebAssembly version](https://github.com/usememos/gomark-wasm) is also available.
