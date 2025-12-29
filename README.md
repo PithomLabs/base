@@ -37,7 +37,7 @@ docker run -d --name memos -p 5230:5230 -v ~/.memos/:/var/opt/memos neosmemo/mem
 
 ## What If?
 
-- What if you want to extend Memos as base for your software engineering (not just vibe coding but incorporates robust software engineering practices)?
+- What if you want to extend Memos as base for your software engineering project (not just vibe coding but incorporates robust software engineering practices)?
 - What if you want to deploy to production-grade PaaS such as fly.io?
 - What if the possibilities are endless (build your own app on top of this base)?
 
